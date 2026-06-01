@@ -1,0 +1,11 @@
+.next
+node_modules
+out
+build
+public
+package-lock.json
+*.min.js
+*.min.css
+data/
+*.sql
+*.py

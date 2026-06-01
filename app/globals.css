@@ -1,0 +1,110 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@config "../tailwind.config.ts";
+
+/* ---------------------------------------------------------------
+   Paleta Holidog Inn
+   - Brand: teal (#063F52) y mustard (#EB9B22)
+   - Soporte: cream, sand, border, ink, muted
+   --------------------------------------------------------------- */
+
+:root {
+  /* Brand */
+  --brand-teal: #063f52;
+  --brand-mustard: #eb9b22;
+
+  /* Neutral */
+  --neutral-cream: #faf6f0;
+  --neutral-sand: #f0e8d8;
+  --neutral-border: #e5ddd0;
+  --neutral-ink: #1a1a1a;
+  --neutral-muted: #6b6b6b;
+
+  /* shadcn tokens — derivados de la paleta */
+  --radius: 0.65rem;
+  --background: var(--neutral-cream);
+  --foreground: var(--neutral-ink);
+  --card: #ffffff;
+  --card-foreground: var(--neutral-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--neutral-ink);
+  --primary: var(--brand-teal);
+  --primary-foreground: #ffffff;
+  --secondary: var(--neutral-sand);
+  --secondary-foreground: var(--neutral-ink);
+  --muted: var(--neutral-sand);
+  --muted-foreground: var(--neutral-muted);
+  --accent: var(--brand-mustard);
+  --accent-foreground: #ffffff;
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+  --border: var(--neutral-border);
+  --input: var(--neutral-border);
+  --ring: var(--brand-teal);
+
+  /* Chart palette para dashboard */
+  --chart-1: var(--brand-teal);
+  --chart-2: var(--brand-mustard);
+  --chart-3: #2a7f93;
+  --chart-4: #c47a14;
+  --chart-5: #8a8a8a;
+}
+
+@theme inline {
+  /* Brand tokens (utilidades tipo bg-brand-teal, text-brand-mustard) */
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-mustard: var(--brand-mustard);
+
+  /* Neutral tokens (utilidades tipo bg-neutral-cream, text-neutral-ink) */
+  --color-neutral-cream: var(--neutral-cream);
+  --color-neutral-sand: var(--neutral-sand);
+  --color-neutral-border: var(--neutral-border);
+  --color-neutral-ink: var(--neutral-ink);
+  --color-neutral-muted: var(--neutral-muted);
+
+  /* shadcn semantic tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+}
