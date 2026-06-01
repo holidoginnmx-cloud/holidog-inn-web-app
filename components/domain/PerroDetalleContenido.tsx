@@ -240,7 +240,7 @@ export function PerroDetalleContenido({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-neutral-ink">
+                  <p className="text-sm font-medium text-brand-ingreso">
                     {formatMoneda(r.precio_acordado)}
                   </p>
                   <p className="text-xs text-neutral-muted">

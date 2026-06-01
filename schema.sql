@@ -17,7 +17,7 @@ create type pago_tipo as enum ('ANTICIPO', 'ABONO', 'RESTANTE');
 create type reservacion_estado as enum ('RESERVADA', 'EN_CURSO', 'FINALIZADA', 'CANCELADA');
 create type tipo_costo as enum ('FIJO', 'VARIABLE', 'SUELDO', 'MARKETING', 'REINVERSION');
 create type sexo_perro as enum ('MACHO', 'HEMBRA');
-create type talla_perro as enum ('CHICO', 'MEDIANO', 'GRANDE', 'GIGANTE');
+create type talla_perro as enum ('EXTRA_CHICO', 'CHICO', 'MEDIANO', 'GRANDE');
 
 -- ============================================================================
 -- TRIGGER GENÉRICO updated_at
@@ -67,10 +67,10 @@ create table perros (
   talla             talla_perro generated always as (
     case
       when peso_kg is null      then null
-      when peso_kg < 10         then 'CHICO'::talla_perro
-      when peso_kg < 25         then 'MEDIANO'::talla_perro
-      when peso_kg < 40         then 'GRANDE'::talla_perro
-      else                           'GIGANTE'::talla_perro
+      when peso_kg < 6          then 'EXTRA_CHICO'::talla_perro
+      when peso_kg < 16         then 'CHICO'::talla_perro
+      when peso_kg <= 25        then 'MEDIANO'::talla_perro
+      else                           'GRANDE'::talla_perro
     end
   ) stored,
   foto_url          text,
@@ -202,6 +202,36 @@ create trigger trg_patrocinios_updated_at
   for each row execute function set_updated_at();
 
 -- ============================================================================
+-- TABLA: tarifas (precios sugeridos por servicio y peso)
+-- Catálogo editable de precios. La app sugiere `precio_acordado` al crear una
+-- reservación; los rangos de peso viven en el código (lib/tarifas.ts).
+-- ============================================================================
+
+create table tarifas (
+  codigo      text primary key,
+  servicio    servicio_tipo not null,
+  etiqueta    text not null,
+  precio      numeric(10,2) not null default 0,
+  orden       int not null default 0,
+  updated_at  timestamptz not null default now()
+);
+
+create trigger trg_tarifas_updated_at
+  before update on tarifas
+  for each row execute function set_updated_at();
+
+insert into tarifas (codigo, servicio, etiqueta, precio, orden) values
+  ('HOTEL_NORMAL',         'HOTEL',    'Hotel · Normal (1–19 kg)',          350, 1),
+  ('HOTEL_XL',             'HOTEL',    'Hotel · XL (20+ kg)',               450, 2),
+  ('HOTEL_PROBARF_NORMAL', 'HOTEL',    'Hotel ProBarf · Normal (1–19 kg)',  300, 3),
+  ('HOTEL_PROBARF_XL',     'HOTEL',    'Hotel ProBarf · XL (20+ kg)',       400, 4),
+  ('ESTETICA_XCHICO',      'ESTETICA', 'Estética · Extra chico (1–5 kg)',   300, 1),
+  ('ESTETICA_CHICO',       'ESTETICA', 'Estética · Chico (6–15 kg)',        350, 2),
+  ('ESTETICA_MEDIANO',     'ESTETICA', 'Estética · Mediano (16–25 kg)',     450, 3),
+  ('ESTETICA_GRANDE',      'ESTETICA', 'Estética · Grande (25+ kg)',        600, 4)
+on conflict do nothing;
+
+-- ============================================================================
 -- VISTAS para el dashboard
 -- ============================================================================
 
@@ -298,6 +328,7 @@ alter table pagos          enable row level security;
 alter table egresos        enable row level security;
 alter table config         enable row level security;
 alter table patrocinios    enable row level security;
+alter table tarifas        enable row level security;
 
 -- Policy permisiva para authenticated; el control fino lo hace Clerk en el server
 create policy "allow_all_authenticated" on clientes      for all to authenticated using (true) with check (true);
@@ -307,3 +338,4 @@ create policy "allow_all_authenticated" on pagos         for all to authenticate
 create policy "allow_all_authenticated" on egresos       for all to authenticated using (true) with check (true);
 create policy "allow_all_authenticated" on config        for all to authenticated using (true) with check (true);
 create policy "allow_all_authenticated" on patrocinios   for all to authenticated using (true) with check (true);
+create policy "allow_all_authenticated" on tarifas       for all to authenticated using (true) with check (true);

@@ -9,6 +9,9 @@ export type ResvLite = {
   fecha_inicio: string;
   fecha_fin: string | null;
   estado: ReservacionEstado;
+  // Total cotizado de la reservación. Opcional: el calendario no lo usa, pero
+  // el historial lo muestra. Los formularios arman ResvLite sin este campo.
+  precioAcordado?: number;
 };
 
 // Reservaciones de HOTEL que ocupan un lugar en `fechaISO`.

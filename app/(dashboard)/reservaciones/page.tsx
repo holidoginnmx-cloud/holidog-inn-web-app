@@ -5,7 +5,7 @@ import { cn, focusRing } from "@/lib/utils";
 import { hoyISO } from "@/lib/date";
 import type { Servicio, ReservacionEstado } from "@/lib/labels";
 import type { ResvLite } from "@/lib/ocupacion";
-import { ReservacionesCalendar } from "@/components/domain/ReservacionesCalendar";
+import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +21,11 @@ export default async function ReservacionesPage() {
     supabase.from("config").select("cupo_maximo").eq("id", 1).maybeSingle(),
     supabase
       .from("reservaciones")
-      .select("id, perro_id, servicio, fecha_inicio, fecha_fin, estado, perro:perros(nombre)")
-      .in("estado", ["RESERVADA", "EN_CURSO"])
+      .select(
+        "id, perro_id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, perro:perros(nombre)",
+      )
+      // Incluye FINALIZADA (históricas migradas del Excel); excluye CANCELADA.
+      .in("estado", ["RESERVADA", "EN_CURSO", "FINALIZADA"])
       .order("fecha_inicio", { ascending: true }),
   ]);
 
@@ -35,13 +38,14 @@ export default async function ReservacionesPage() {
     fecha_inicio: r.fecha_inicio,
     fecha_fin: r.fecha_fin,
     estado: r.estado as ReservacionEstado,
+    precioAcordado: r.precio_acordado ?? 0,
   }));
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-neutral-ink">Reservaciones</h1>
 
-      <ReservacionesCalendar reservaciones={reservaciones} cupo={cupo} todayISO={hoyISO()} />
+      <ReservacionesScreen reservaciones={reservaciones} cupo={cupo} todayISO={hoyISO()} />
 
       <Link
         href="/reservaciones/nueva"

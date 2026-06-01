@@ -14,32 +14,32 @@ export const MARCA_REVISAR_CLIENTE = "REVISAR: enlazar a cliente real";
 // para previsualizar la talla en el formulario; la fuente de verdad es la BD.
 export function calcularTalla(pesoKg: number | null | undefined): Talla | null {
   if (pesoKg == null || Number.isNaN(pesoKg) || pesoKg <= 0) return null;
-  if (pesoKg < 10) return "CHICO";
-  if (pesoKg < 25) return "MEDIANO";
-  if (pesoKg < 40) return "GRANDE";
-  return "GIGANTE";
+  if (pesoKg < 6) return "EXTRA_CHICO";
+  if (pesoKg < 16) return "CHICO";
+  if (pesoKg <= 25) return "MEDIANO";
+  return "GRANDE";
 }
 
 export const TALLA_LABEL: Record<Talla, string> = {
+  EXTRA_CHICO: "Extra chico",
   CHICO: "Chico",
   MEDIANO: "Mediano",
   GRANDE: "Grande",
-  GIGANTE: "Gigante",
 };
 
 export const TALLA_RANGO: Record<Talla, string> = {
-  CHICO: "< 10 kg",
-  MEDIANO: "10–25 kg",
-  GRANDE: "25–40 kg",
-  GIGANTE: "> 40 kg",
+  EXTRA_CHICO: "1–5 kg",
+  CHICO: "6–15 kg",
+  MEDIANO: "16–25 kg",
+  GRANDE: "25+ kg",
 };
 
 // Clases de color por talla, para escaneo visual rápido en la lista.
 export const TALLA_CLASS: Record<Talla, string> = {
-  CHICO: "bg-emerald-100 text-emerald-800",
-  MEDIANO: "bg-sky-100 text-sky-800",
-  GRANDE: "bg-amber-100 text-amber-900",
-  GIGANTE: "bg-rose-100 text-rose-900",
+  EXTRA_CHICO: "bg-emerald-100 text-emerald-800",
+  CHICO: "bg-sky-100 text-sky-800",
+  MEDIANO: "bg-amber-100 text-amber-900",
+  GRANDE: "bg-rose-100 text-rose-900",
 };
 
 export const SEXO_LABEL: Record<Sexo, string> = {

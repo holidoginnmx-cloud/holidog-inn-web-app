@@ -94,7 +94,7 @@ function PlaceholderCard({ ph, opciones }: { ph: PlaceholderItem; opciones: Perr
         <p className="font-medium text-neutral-ink">{ph.nombre}</p>
         <p className="text-sm text-neutral-muted">
           {ph.nReservaciones} {ph.nReservaciones === 1 ? "reservación" : "reservaciones"} ·{" "}
-          <span className="font-medium text-brand-teal">{formatMoneda(ph.total)}</span>
+          <span className="font-medium text-brand-ingreso">{formatMoneda(ph.total)}</span>
           {ph.servicios.length > 0 && <> · {ph.servicios.join(", ")}</>}
         </p>
         {ph.desde && (

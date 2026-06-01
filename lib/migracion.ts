@@ -28,7 +28,7 @@ export type PerroRow = {
   comportamiento: string | null;
   veterinario: string | null;
   esterilizado: boolean | null;
-  talla: "CHICO" | "MEDIANO" | "GRANDE" | "GIGANTE" | null;
+  talla: "EXTRA_CHICO" | "CHICO" | "MEDIANO" | "GRANDE" | null;
   notas: string;
 };
 export type ReservacionRow = {
@@ -176,7 +176,7 @@ const TAMANO_A_TALLA: Record<string, PerroRow["talla"]> = {
   S: "CHICO",
   M: "MEDIANO",
   L: "GRANDE",
-  XL: "GIGANTE",
+  XL: "GRANDE",
 };
 function mapTalla(v: unknown): PerroRow["talla"] {
   const k = String(v ?? "").trim().toUpperCase();

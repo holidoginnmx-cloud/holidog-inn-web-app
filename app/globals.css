@@ -13,6 +13,10 @@
   --brand-teal: #063f52;
   --brand-mustard: #eb9b22;
 
+  /* Semántica financiera: ingreso = verde, egreso = rojo */
+  --brand-ingreso: #16a34a;
+  --brand-egreso: #dc2626;
+
   /* Neutral */
   --neutral-cream: #faf6f0;
   --neutral-sand: #f0e8d8;
@@ -54,6 +58,8 @@
   /* Brand tokens (utilidades tipo bg-brand-teal, text-brand-mustard) */
   --color-brand-teal: var(--brand-teal);
   --color-brand-mustard: var(--brand-mustard);
+  --color-brand-ingreso: var(--brand-ingreso);
+  --color-brand-egreso: var(--brand-egreso);
 
   /* Neutral tokens (utilidades tipo bg-neutral-cream, text-neutral-ink) */
   --color-neutral-cream: var(--neutral-cream);

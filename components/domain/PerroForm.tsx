@@ -244,10 +244,12 @@ export function PerroForm(props: Props) {
               <Label htmlFor="perro-talla">Talla</Label>
               <select id="perro-talla" className={inputSelectClass} {...register("perro.talla")}>
                 <option value="">—</option>
+                <option value="EXTRA_CHICO">
+                  {TALLA_LABEL.EXTRA_CHICO} ({TALLA_RANGO.EXTRA_CHICO})
+                </option>
                 <option value="CHICO">{TALLA_LABEL.CHICO} ({TALLA_RANGO.CHICO})</option>
                 <option value="MEDIANO">{TALLA_LABEL.MEDIANO} ({TALLA_RANGO.MEDIANO})</option>
                 <option value="GRANDE">{TALLA_LABEL.GRANDE} ({TALLA_RANGO.GRANDE})</option>
-                <option value="GIGANTE">{TALLA_LABEL.GIGANTE} ({TALLA_RANGO.GIGANTE})</option>
               </select>
               <p className="text-neutral-muted text-xs">
                 Si capturas el peso, la talla se calcula sola.

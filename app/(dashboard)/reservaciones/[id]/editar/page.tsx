@@ -27,7 +27,8 @@ export default async function EditarReservacionPage({
   if (error) console.error("[reservaciones] Error al cargar para editar:", error);
   if (!r) notFound();
 
-  const { perros, reservacionesActivas, cupo } = await cargarDatosFormReservacion();
+  const { perros, reservacionesActivas, cupo, pesoPorPerro, tallaPorPerro, tarifas } =
+    await cargarDatosFormReservacion();
 
   const initial: ReservacionInitial = {
     perroId: r.perro_id,
@@ -60,6 +61,9 @@ export default async function EditarReservacionPage({
         perros={perros}
         reservacionesActivas={reservacionesActivas}
         cupo={cupo}
+        pesoPorPerro={pesoPorPerro}
+        tallaPorPerro={tallaPorPerro}
+        tarifas={tarifas}
       />
 
       <EliminarReservacionButton reservacionId={id} />

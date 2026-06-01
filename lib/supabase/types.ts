@@ -298,6 +298,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      tarifas: {
+        Row: {
+          codigo: string;
+          servicio: Database["public"]["Enums"]["servicio_tipo"];
+          etiqueta: string;
+          precio: number;
+          orden: number;
+          updated_at: string;
+        };
+        Insert: {
+          codigo: string;
+          servicio: Database["public"]["Enums"]["servicio_tipo"];
+          etiqueta: string;
+          precio?: number;
+          orden?: number;
+          updated_at?: string;
+        };
+        Update: {
+          codigo?: string;
+          servicio?: Database["public"]["Enums"]["servicio_tipo"];
+          etiqueta?: string;
+          precio?: number;
+          orden?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       vw_ocupacion_hoy: {
@@ -375,7 +402,7 @@ export type Database = {
       reservacion_estado: "RESERVADA" | "EN_CURSO" | "FINALIZADA" | "CANCELADA";
       tipo_costo: "FIJO" | "VARIABLE" | "SUELDO" | "MARKETING" | "REINVERSION";
       sexo_perro: "MACHO" | "HEMBRA";
-      talla_perro: "CHICO" | "MEDIANO" | "GRANDE" | "GIGANTE";
+      talla_perro: "EXTRA_CHICO" | "CHICO" | "MEDIANO" | "GRANDE";
     };
     CompositeTypes: {
       [_ in never]: never;

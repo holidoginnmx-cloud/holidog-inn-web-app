@@ -89,6 +89,16 @@ export function diaDelMes(iso: string): number {
   return Number(iso.slice(8, 10));
 }
 
+// Noches entre dos fechas "YYYY-MM-DD" (entrada/salida del hotel). Es la
+// diferencia en días; si el rango es inválido o de 0 días, devuelve 0.
+export function nochesEntre(inicioISO: string, finISO: string): number {
+  const a = parse(inicioISO);
+  const b = parse(finISO);
+  if (!a || !b) return 0;
+  const dias = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  return dias > 0 ? dias : 0;
+}
+
 const fmtDiaSemana = new Intl.DateTimeFormat("es-MX", { weekday: "short" });
 const fmtDiaSemanaLargo = new Intl.DateTimeFormat("es-MX", { weekday: "long" });
 const fmtMesAnio = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" });

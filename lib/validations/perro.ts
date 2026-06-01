@@ -3,7 +3,7 @@ import { opcional, checkbox, fechaOpcional } from "./helpers";
 import { clienteInputSchema } from "./cliente";
 
 export const SEXO_VALUES = ["MACHO", "HEMBRA"] as const;
-export const TALLA_VALUES = ["CHICO", "MEDIANO", "GRANDE", "GIGANTE"] as const;
+export const TALLA_VALUES = ["EXTRA_CHICO", "CHICO", "MEDIANO", "GRANDE"] as const;
 
 // Peso: "" → null; número válido entre 0 y 120 kg. Si hay peso, la BD recalcula
 // la talla (el peso manda); si no hay peso, se respeta la talla seleccionada.

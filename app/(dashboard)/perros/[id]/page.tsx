@@ -201,7 +201,7 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-neutral-ink">
+                  <p className="text-sm font-medium text-brand-ingreso">
                     {formatMoneda(r.precio_acordado)}
                   </p>
                   <p className="text-xs text-neutral-muted">{ESTADO_LABEL[r.estado] ?? r.estado}</p>

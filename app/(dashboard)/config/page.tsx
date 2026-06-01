@@ -3,6 +3,7 @@ import { Download, Upload, ExternalLink, Handshake } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ConfigForm } from "@/components/domain/ConfigForm";
+import { TarifasForm, type TarifaItem } from "@/components/domain/TarifasForm";
 import { CategoriasEditor, type CategoriaUso } from "@/components/domain/CategoriasEditor";
 import { CollapsibleBlock } from "@/components/domain/dashboard/CollapsibleBlock";
 import pkg from "@/package.json";
@@ -21,9 +22,10 @@ function Seccion({ title, children }: { title: string; children: React.ReactNode
 export default async function ConfigPage() {
   const supabase = createSupabaseServerClient();
 
-  const [cfgRes, egresosRes] = await Promise.all([
+  const [cfgRes, egresosRes, tarifasRes] = await Promise.all([
     supabase.from("config").select("nombre_hotel, cupo_maximo").eq("id", 1).maybeSingle(),
     supabase.from("egresos").select("categoria"),
+    supabase.from("tarifas").select("codigo, servicio, etiqueta, precio").order("orden"),
   ]);
 
   const nombre = cfgRes.data?.nombre_hotel ?? "Holidog Inn";
@@ -37,6 +39,13 @@ export default async function ConfigPage() {
     .map(([nombre, usos]) => ({ nombre, usos }))
     .sort((a, b) => b.usos - a.usos);
 
+  const tarifas: TarifaItem[] = (tarifasRes.data ?? []).map((t) => ({
+    codigo: t.codigo,
+    servicio: t.servicio,
+    etiqueta: t.etiqueta,
+    precio: Number(t.precio),
+  }));
+
   const repoUrl = process.env.NEXT_PUBLIC_REPO_URL;
 
   return (
@@ -46,6 +55,12 @@ export default async function ConfigPage() {
       <Seccion title="Hotel">
         <ConfigForm nombre={nombre} cupo={cupo} />
       </Seccion>
+
+      {tarifas.length > 0 && (
+        <CollapsibleBlock title="Tarifas" defaultOpen={false}>
+          <TarifasForm tarifas={tarifas} />
+        </CollapsibleBlock>
+      )}
 
       <CollapsibleBlock
         title={`Categorías de egresos (${categorias.length})`}

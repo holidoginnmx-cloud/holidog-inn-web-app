@@ -11,7 +11,8 @@ export default async function NuevaReservacionPage({
   searchParams: Promise<{ perro?: string }>;
 }) {
   const { perro } = await searchParams;
-  const { perros, reservacionesActivas, cupo } = await cargarDatosFormReservacion();
+  const { perros, reservacionesActivas, cupo, pesoPorPerro, tallaPorPerro, tarifas } =
+    await cargarDatosFormReservacion();
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
@@ -31,6 +32,9 @@ export default async function NuevaReservacionPage({
         perros={perros}
         reservacionesActivas={reservacionesActivas}
         cupo={cupo}
+        pesoPorPerro={pesoPorPerro}
+        tallaPorPerro={tallaPorPerro}
+        tarifas={tarifas}
         initialPerroId={perro}
       />
     </div>

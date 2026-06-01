@@ -152,7 +152,7 @@ export function MovimientosHub({
             "flex h-12 items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors",
             focusRing,
             esIngresos
-              ? "bg-brand-teal text-white"
+              ? "bg-brand-ingreso text-white"
               : "border border-neutral-border bg-white text-neutral-muted",
           )}
         >
@@ -167,7 +167,7 @@ export function MovimientosHub({
             "flex h-12 items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors",
             focusRing,
             !esIngresos
-              ? "bg-brand-teal text-white"
+              ? "bg-brand-egreso text-white"
               : "border border-neutral-border bg-white text-neutral-muted",
           )}
         >
@@ -181,7 +181,7 @@ export function MovimientosHub({
         <p
           className={cn(
             "text-3xl font-bold tracking-tight",
-            esIngresos ? "text-brand-teal" : "text-neutral-ink",
+            esIngresos ? "text-brand-ingreso" : "text-brand-egreso",
           )}
         >
           {formatMoneda(esIngresos ? totalIngresosMes : totalEgresosMes)}
@@ -217,7 +217,8 @@ export function MovimientosHub({
         onClick={abrirNuevo}
         aria-label={esIngresos ? "Nuevo ingreso (tecla N)" : "Nuevo egreso (tecla N)"}
         className={cn(
-          "fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-30 flex size-16 items-center justify-center rounded-full bg-brand-teal text-white shadow-lg transition-transform active:scale-95",
+          "fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-30 flex size-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95",
+          esIngresos ? "bg-brand-ingreso" : "bg-brand-egreso",
           focusRing,
         )}
       >
@@ -427,7 +428,7 @@ function FilaIngreso({ item, onEdit }: { item: IngresoItem; onEdit: (item: Ingre
             {PAGO_TIPO_LABEL[item.tipo]} · {formatFecha(item.fecha)}
           </p>
         </div>
-        <p className="shrink-0 font-semibold text-brand-teal">{formatMoneda(item.monto)}</p>
+        <p className="shrink-0 font-semibold text-brand-ingreso">{formatMoneda(item.monto)}</p>
       </button>
       <BotonEliminar tipo="pago" id={item.id} />
     </li>
@@ -448,7 +449,7 @@ function FilaEgreso({ item, onEdit }: { item: EgresoItem; onEdit: (item: EgresoI
             {item.categoria} · {TIPO_COSTO_LABEL[item.tipo_costo]} · {formatFecha(item.fecha)}
           </p>
         </div>
-        <p className="shrink-0 font-semibold text-neutral-ink">{formatMoneda(item.monto)}</p>
+        <p className="shrink-0 font-semibold text-brand-egreso">{formatMoneda(item.monto)}</p>
       </button>
       <BotonEliminar tipo="egreso" id={item.id} />
     </li>

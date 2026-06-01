@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { configInputSchema, renombrarCategoriaSchema } from "@/lib/validations/config";
+import {
+  configInputSchema,
+  renombrarCategoriaSchema,
+  tarifasInputSchema,
+} from "@/lib/validations/config";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -68,4 +72,32 @@ export async function renombrarCategoria(
   revalidatePath("/config");
   revalidatePath("/");
   return { ok: true, data: { afectados: data?.length ?? 0 } };
+}
+
+// Actualiza los precios del catálogo de tarifas (una fila por `codigo`).
+export async function actualizarTarifas(input: unknown): Promise<ActionResult<null>> {
+  const parsed = tarifasInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  let supabase;
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (e) {
+    console.error("[config] Supabase no configurado:", e);
+    return { ok: false, error: "La base de datos no está configurada." };
+  }
+
+  for (const { codigo, precio } of parsed.data.tarifas) {
+    const { error } = await supabase.from("tarifas").update({ precio }).eq("codigo", codigo);
+    if (error) {
+      console.error("[config] Error al actualizar tarifa:", codigo, error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+  }
+
+  revalidatePath("/config");
+  revalidatePath("/reservaciones");
+  return { ok: true, data: null };
 }

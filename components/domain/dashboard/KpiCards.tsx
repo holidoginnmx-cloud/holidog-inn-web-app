@@ -59,7 +59,7 @@ export function KpiCards({
     <>
       <div className="rounded-xl border border-neutral-border bg-white p-4">
         <p className="text-sm text-neutral-muted">Ingresos</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-brand-teal">
+        <p className="mt-1 text-2xl font-bold tracking-tight text-brand-ingreso">
           {formatMoneda(ingresos)}
         </p>
         <div className="mt-1.5">
@@ -69,7 +69,7 @@ export function KpiCards({
 
       <div className="rounded-xl border border-neutral-border bg-white p-4">
         <p className="text-sm text-neutral-muted">Egresos</p>
-        <p className="mt-1 text-2xl font-bold tracking-tight text-neutral-ink">
+        <p className="mt-1 text-2xl font-bold tracking-tight text-brand-egreso">
           {formatMoneda(egresos)}
         </p>
         <div className="mt-1.5">
@@ -80,7 +80,7 @@ export function KpiCards({
       <div
         className={cn(
           "rounded-xl border p-4",
-          positiva ? "border-transparent bg-brand-teal text-white" : "border-rose-200 bg-rose-50 text-rose-900",
+          positiva ? "border-transparent bg-brand-ingreso text-white" : "border-rose-200 bg-rose-50 text-rose-900",
         )}
       >
         <p className={cn("text-sm", positiva ? "text-white/85" : "text-rose-700")}>Utilidad</p>

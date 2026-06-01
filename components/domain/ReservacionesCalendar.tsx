@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LogIn, LogOut, Scissors } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ChevronLeft, ChevronRight, LogIn, LogOut, Scissors, X } from "lucide-react";
 import { cn, focusRing } from "@/lib/utils";
 import { Pills } from "./Pills";
 import {
@@ -246,18 +247,22 @@ function DetalleDia({
   iso,
   occ,
   serv,
+  sinEncabezado = false,
 }: {
   iso: string;
   occ: (iso: string) => ResvLite[];
   serv: (iso: string) => ResvLite[];
+  sinEncabezado?: boolean;
 }) {
   const lista = occ(iso);
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-brand-teal">
-          <span className="capitalize">{diaSemanaLargo(iso)}</span> {formatFecha(iso)}
-        </h2>
+        {!sinEncabezado && (
+          <h2 className="text-sm font-semibold text-brand-teal">
+            <span className="capitalize">{diaSemanaLargo(iso)}</span> {formatFecha(iso)}
+          </h2>
+        )}
         {lista.length === 0 ? (
           <ListaVacia texto="Ningún perro hospedado este día." />
         ) : (
@@ -458,16 +463,28 @@ function VistaMes({
               type="button"
               onClick={() => setSel(iso)}
               className={cn(
-                "relative flex aspect-square flex-col items-center justify-center rounded-md border text-xs transition-colors",
+                "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-md border transition-colors",
                 focusRing,
                 count > 0 ? NIVEL_CELDA[nivel] : "bg-white text-neutral-ink",
                 activo ? "border-brand-teal ring-1 ring-brand-teal" : "border-neutral-border",
               )}
             >
-              <span className={cn("font-medium", esHoy && "text-brand-teal underline")}>
+              <span
+                className={cn(
+                  "text-xs font-medium leading-none",
+                  esHoy ? "font-bold text-brand-teal underline" : "text-neutral-muted",
+                )}
+              >
                 {diaDelMes(iso)}
               </span>
-              <span className="text-sm font-bold leading-none">{count > 0 ? count : "·"}</span>
+              <span
+                className={cn(
+                  "text-xl font-extrabold leading-none tabular-nums",
+                  count === 0 && "text-base font-normal text-neutral-muted/40",
+                )}
+              >
+                {count > 0 ? count : "·"}
+              </span>
               {tieneServ && (
                 <span
                   className="absolute right-1 top-1 size-1.5 rounded-full bg-brand-mustard"
@@ -481,7 +498,35 @@ function VistaMes({
 
       <LeyendaOcupacion />
 
-      {sel && <DetalleDia iso={sel} occ={occ} serv={serv} />}
+      {/* Pop-up con el detalle del día seleccionado. */}
+      <Dialog.Root open={sel !== null} onOpenChange={(o) => !o && setSel(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-neutral-cream p-5 shadow-lg focus:outline-none">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <Dialog.Title className="text-base font-semibold capitalize text-brand-teal">
+                  {sel ? diaSemanaLargo(sel) : ""}
+                </Dialog.Title>
+                <Dialog.Description className="text-sm text-neutral-muted">
+                  {sel ? formatFecha(sel) : ""}
+                  {sel ? ` · ${occ(sel).length} en hotel` : ""}
+                </Dialog.Description>
+              </div>
+              <Dialog.Close
+                aria-label="Cerrar"
+                className={cn(
+                  "flex size-9 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-neutral-sand",
+                  focusRing,
+                )}
+              >
+                <X className="size-5" aria-hidden />
+              </Dialog.Close>
+            </div>
+            {sel && <DetalleDia iso={sel} occ={occ} serv={serv} sinEncabezado />}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

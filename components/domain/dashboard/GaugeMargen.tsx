@@ -1,13 +1,15 @@
 "use client";
 
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from "recharts";
-import { COLOR } from "@/lib/chart";
+import { AlertTriangle } from "lucide-react";
+import { COLOR, UMBRAL_MARGEN_MIN } from "@/lib/chart";
 
 // Margen de utilidad (utilidad / ingresos). Puede ser negativo si hay pérdida;
-// el gauge se acota a [0, 100] visualmente y el color cambia si es negativo.
+// el gauge se acota a [0, 100] visualmente. Se marca en alerta (rojo) cuando el
+// margen cae por debajo del mínimo saludable (UMBRAL_MARGEN_MIN).
 export function GaugeMargen({ margen }: { margen: number }) {
-  const negativo = margen < 0;
-  const fill = negativo ? "#f43f5e" : COLOR.mustard;
+  const alerta = margen < UMBRAL_MARGEN_MIN;
+  const fill = alerta ? COLOR.egreso : COLOR.ingreso;
   const visual = Math.max(0, Math.min(margen, 100));
 
   return (
@@ -39,6 +41,12 @@ export function GaugeMargen({ margen }: { margen: number }) {
           <p className="text-xs font-normal text-neutral-muted">del ingreso</p>
         </div>
       </div>
+      {alerta && (
+        <p className="mt-1 flex items-center justify-center gap-1 text-xs font-medium text-brand-egreso">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+          Bajo el mínimo del {UMBRAL_MARGEN_MIN}%
+        </p>
+      )}
     </div>
   );
 }

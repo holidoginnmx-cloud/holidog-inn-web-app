@@ -13,7 +13,7 @@ import { PerroDialog } from "./PerroDialog";
 import { type PerroListItem } from "./PerroCard";
 
 const TODAS = "todas";
-const ORDEN_TALLA: Talla[] = ["CHICO", "MEDIANO", "GRANDE", "GIGANTE"];
+const ORDEN_TALLA: Talla[] = ["EXTRA_CHICO", "CHICO", "MEDIANO", "GRANDE"];
 
 // Lista de perros con búsqueda instantánea por nombre (de perro o de cliente).
 // El fetch ocurre en el Server Component padre; aquí solo filtramos en memoria.
@@ -25,15 +25,14 @@ export function PerroList({ perros }: { perros: PerroListItem[] }) {
   // Atajo: "/" enfoca la búsqueda (desktop).
   useHotkey("/", () => inputRef.current?.focus());
 
-  // Solo mostramos pills de las tallas presentes en la lista.
-  const tallaPills = useMemo(() => {
-    const presentes = new Set(perros.map((p) => p.talla).filter(Boolean));
-    const opts = ORDEN_TALLA.filter((t) => presentes.has(t)).map((t) => ({
-      value: t,
-      label: TALLA_LABEL[t],
-    }));
-    return [{ value: TODAS, label: "Todas" }, ...opts];
-  }, [perros]);
+  // Mostramos siempre las 4 tallas, aunque aún no haya perros en alguna.
+  const tallaPills = useMemo(
+    () => [
+      { value: TODAS, label: "Todas" },
+      ...ORDEN_TALLA.map((t) => ({ value: t, label: TALLA_LABEL[t] })),
+    ],
+    [],
+  );
 
   const filtrados = useMemo(() => {
     const q = query.trim().toLowerCase();

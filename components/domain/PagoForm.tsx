@@ -229,7 +229,11 @@ export function PagoForm({
         />
       </div>
 
-      <Button type="submit" disabled={pending} className="h-12 w-full text-base">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-12 w-full bg-brand-ingreso text-base hover:bg-brand-ingreso/90"
+      >
         {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
         {esEdicion ? "Guardar cambios" : "Guardar ingreso"}
       </Button>

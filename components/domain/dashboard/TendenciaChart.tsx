@@ -24,8 +24,8 @@ export function TendenciaChart({ data }: { data: Punto[] }) {
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="gradUtilidad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={COLOR.teal} />
-            <stop offset="100%" stopColor={COLOR.mustard} />
+            <stop offset="0%" stopColor={COLOR.ingreso} />
+            <stop offset="100%" stopColor={COLOR.egreso} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#E5DDD0" vertical={false} />
@@ -48,7 +48,7 @@ export function TendenciaChart({ data }: { data: Punto[] }) {
           type="monotone"
           dataKey="ingresos"
           name="Ingresos"
-          stroke={COLOR.teal}
+          stroke={COLOR.ingreso}
           strokeWidth={2}
           dot={false}
         />
@@ -56,7 +56,7 @@ export function TendenciaChart({ data }: { data: Punto[] }) {
           type="monotone"
           dataKey="egresos"
           name="Egresos"
-          stroke={COLOR.mustard}
+          stroke={COLOR.egreso}
           strokeWidth={2}
           dot={false}
         />

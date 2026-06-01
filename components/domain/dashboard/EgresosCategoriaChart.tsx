@@ -27,7 +27,7 @@ export function EgresosCategoriaChart({ data }: { data: Dato[] }) {
           <div className="flex items-center gap-2.5">
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-neutral-sand">
               <div
-                className="h-full rounded-full bg-brand-mustard transition-[width]"
+                className="h-full rounded-full bg-brand-egreso transition-[width]"
                 style={{ width: `${Math.max(3, (d.total / max) * 100)}%` }}
               />
             </div>

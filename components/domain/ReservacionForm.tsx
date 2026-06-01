@@ -8,11 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Combobox, type ComboOption } from "./Combobox";
 import { Pills } from "./Pills";
-import { SERVICIO_OPTIONS, SERVICIO_LABEL, ESTADO_OPTIONS, ESTADO_LABEL } from "@/lib/labels";
+import { SERVICIO_OPTIONS, SERVICIO_LABEL, ESTADO_OPTIONS, ESTADO_LABEL, type Servicio } from "@/lib/labels";
 import { hoyISO, addDiasISO, formatFecha } from "@/lib/date";
 import { ocupantes, type ResvLite } from "@/lib/ocupacion";
+import { formatMoneda } from "@/lib/utils";
+import type { Talla } from "@/lib/perro";
+import { calcularPrecioSugerido, type Tarifas } from "@/lib/tarifas";
 import { crearReservacion, actualizarReservacion } from "@/app/(dashboard)/reservaciones/actions";
 
 const SERVICIO_PILLS = SERVICIO_OPTIONS.map((s) => ({ value: s, label: SERVICIO_LABEL[s] }));
@@ -33,6 +37,9 @@ type Props = {
   perros: ComboOption[];
   reservacionesActivas: ResvLite[];
   cupo: number;
+  pesoPorPerro: Record<string, number | null>;
+  tallaPorPerro: Record<string, Talla | null>;
+  tarifas: Tarifas;
 } & (
   | { mode: "crear"; initialPerroId?: string }
   | { mode: "editar"; reservacionId: string; initial: ReservacionInitial }
@@ -52,10 +59,42 @@ export function ReservacionForm(props: Props) {
   const [anticipo, setAnticipo] = useState(init?.anticipo_acordado ?? "");
   const [estado, setEstado] = useState<string>(init?.estado ?? "RESERVADA");
   const [notas, setNotas] = useState(init?.notas ?? "");
+  const [probarf, setProbarf] = useState(false);
+  // En editar no pisamos el precio guardado; en crear arrancamos con la sugerencia.
+  const [precioTocado, setPrecioTocado] = useState(props.mode === "editar");
   const [pending, setPending] = useState(false);
 
   const esHotel = servicio === "HOTEL";
   const excludeId = props.mode === "editar" ? props.reservacionId : undefined;
+
+  // Precio sugerido según servicio + peso del perro (hotel: × noches; ProBarf abarata).
+  const sugerido = useMemo(
+    () =>
+      calcularPrecioSugerido({
+        servicio: servicio as Servicio,
+        pesoKg: perroId ? props.pesoPorPerro[perroId] : null,
+        talla: perroId ? props.tallaPorPerro[perroId] : null,
+        fechaInicio,
+        fechaFin: esHotel ? fechaFin : null,
+        probarf,
+        tarifas: props.tarifas,
+      }),
+    [
+      servicio,
+      perroId,
+      fechaInicio,
+      fechaFin,
+      esHotel,
+      probarf,
+      props.pesoPorPerro,
+      props.tallaPorPerro,
+      props.tarifas,
+    ],
+  );
+
+  // Valor mostrado en el input: mientras el usuario no lo edite a mano, sigue a la
+  // sugerencia (estado derivado, sin efecto). Al editar, manda lo que escribió.
+  const precioEfectivo = !precioTocado && sugerido ? String(sugerido.monto) : precio;
 
   // Días del rango cuyo cupo se excede con esta reservación (solo HOTEL).
   const conflictos = useMemo(() => {
@@ -84,7 +123,7 @@ export function ReservacionForm(props: Props) {
       servicio,
       fecha_inicio: fechaInicio,
       fecha_fin: esHotel ? fechaFin : null,
-      precio_acordado: precio === "" ? "0" : precio,
+      precio_acordado: precioEfectivo === "" ? "0" : precioEfectivo,
       anticipo_acordado: anticipo,
       estado,
       notas,
@@ -173,6 +212,21 @@ export function ReservacionForm(props: Props) {
         </div>
       )}
 
+      {esHotel && (
+        <label
+          htmlFor="resv-probarf"
+          className="flex items-center justify-between rounded-md border border-neutral-border bg-white p-3"
+        >
+          <span className="text-sm">
+            <span className="font-medium text-neutral-ink">ProBarf</span>
+            <span className="block text-xs text-neutral-muted">
+              Cliente ProBarf (incluye alimento, precio especial)
+            </span>
+          </span>
+          <Switch id="resv-probarf" checked={probarf} onCheckedChange={setProbarf} />
+        </label>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="resv-precio">Precio acordado</Label>
@@ -184,8 +238,11 @@ export function ReservacionForm(props: Props) {
             min="0"
             placeholder="0.00"
             className="bg-white"
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value)}
+            value={precioEfectivo}
+            onChange={(e) => {
+              setPrecioTocado(true);
+              setPrecio(e.target.value);
+            }}
           />
         </div>
         <div className="space-y-1.5">
@@ -203,6 +260,32 @@ export function ReservacionForm(props: Props) {
           />
         </div>
       </div>
+
+      {servicio !== "GUARDERIA" &&
+        (sugerido ? (
+          <p className="-mt-2 text-xs text-neutral-muted">
+            Sugerido:{" "}
+            <span className="font-medium text-brand-teal">{formatMoneda(sugerido.monto)}</span> —{" "}
+            {sugerido.detalle}.
+            {precioTocado && (
+              <button
+                type="button"
+                className="ml-1 font-medium text-brand-teal underline"
+                onClick={() => setPrecioTocado(false)}
+              >
+                Usar sugerido
+              </button>
+            )}
+          </p>
+        ) : (
+          perroId &&
+          props.pesoPorPerro[perroId] == null &&
+          props.tallaPorPerro[perroId] == null && (
+            <p className="-mt-2 text-xs text-neutral-muted">
+              Registra el peso o la talla del perro para sugerir el precio.
+            </p>
+          )
+        ))}
 
       <div className="space-y-1.5">
         <Label>Estado</Label>

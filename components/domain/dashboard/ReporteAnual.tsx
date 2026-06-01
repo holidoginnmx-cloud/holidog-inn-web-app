@@ -84,7 +84,7 @@ export function ReporteAnual({ data }: { data: ReporteAnualData }) {
               // Tinte de la fila (semi-transparente, sobre la tarjeta blanca).
               const rowBg =
                 fila.variante === "total"
-                  ? "bg-brand-teal/5"
+                  ? "bg-brand-ingreso/5"
                   : fila.variante === "resultado"
                     ? "bg-neutral-sand/50"
                     : "bg-white";
@@ -92,7 +92,7 @@ export function ReporteAnual({ data }: { data: ReporteAnualData }) {
               // que las columnas no se transparenten por debajo al hacer scroll.
               const stickyBg =
                 fila.variante === "total"
-                  ? "bg-[#EEF4F5]"
+                  ? "bg-[#F1F9F4]"
                   : fila.variante === "resultado"
                     ? "bg-[#F7F2E9]"
                     : "bg-white";
@@ -154,11 +154,11 @@ export function ReporteAnual({ data }: { data: ReporteAnualData }) {
 }
 
 function celdaColor(variante: Fila["variante"], valor: number): string {
-  if (variante === "total") return "font-semibold text-brand-teal";
+  if (variante === "total") return "font-semibold text-brand-ingreso";
   if (variante === "resultado") {
-    return valor < 0 ? "font-semibold text-red-600" : "font-semibold text-brand-teal";
+    return valor < 0 ? "font-semibold text-brand-egreso" : "font-semibold text-brand-ingreso";
   }
-  if (variante === "egreso") return "text-neutral-ink";
+  if (variante === "egreso") return "text-brand-egreso";
   return "text-neutral-ink";
 }
 
@@ -173,12 +173,12 @@ function ProyeccionCard({
 }) {
   const color =
     tono === "ingreso"
-      ? "text-brand-teal"
+      ? "text-brand-ingreso"
       : tono === "resultado"
         ? monto < 0
-          ? "text-red-600"
-          : "text-brand-teal"
-        : "text-neutral-ink";
+          ? "text-brand-egreso"
+          : "text-brand-ingreso"
+        : "text-brand-egreso";
   return (
     <div className="rounded-lg border border-neutral-border bg-neutral-sand/40 p-2.5">
       <p className="text-[11px] text-neutral-muted">{label}</p>

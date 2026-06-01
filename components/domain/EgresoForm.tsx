@@ -163,7 +163,11 @@ export function EgresoForm({
         />
       </div>
 
-      <Button type="submit" disabled={pending} className="h-12 w-full text-base">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-12 w-full bg-brand-egreso text-base hover:bg-brand-egreso/90"
+      >
         {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
         {esEdicion ? "Guardar cambios" : "Guardar egreso"}
       </Button>

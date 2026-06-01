@@ -13,6 +13,8 @@ const config: Config = {
         brand: {
           teal: "#063F52",
           mustard: "#EB9B22",
+          ingreso: "#16A34A",
+          egreso: "#DC2626",
         },
         neutral: {
           cream: "#FAF6F0",
