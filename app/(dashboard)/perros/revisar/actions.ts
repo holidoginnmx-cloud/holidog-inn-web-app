@@ -1,25 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { SupabaseClient } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
+import { type ActionResult, type DB, withSupabase } from "@/lib/actions";
 import { MARCA_REVISAR_PERRO } from "@/lib/perro";
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
 const ERROR_GENERICO = "No se pudo completar. Intenta de nuevo.";
-
-type DB = SupabaseClient<Database>;
-
-function cliente(): DB | null {
-  try {
-    return createSupabaseServerClient();
-  } catch (e) {
-    console.error("[revisar] Supabase no configurado:", e);
-    return null;
-  }
-}
 
 // Lee el placeholder y valida que de verdad sea un "REVISAR". Devuelve su cliente_id.
 async function leerPlaceholder(supabase: DB, perroId: string): Promise<string | null | "error"> {
@@ -71,35 +56,35 @@ export async function reasignarPlaceholder(
   if (placeholderId === realPerroId) {
     return { ok: false, error: "Elige un perro distinto." };
   }
-  const supabase = cliente();
-  if (!supabase) return { ok: false, error: "La base de datos no está configurada." };
 
-  const clienteId = await leerPlaceholder(supabase, placeholderId);
-  if (clienteId === "error") return { ok: false, error: ERROR_GENERICO };
+  return withSupabase("revisar", async (supabase) => {
+    const clienteId = await leerPlaceholder(supabase, placeholderId);
+    if (clienteId === "error") return { ok: false, error: ERROR_GENERICO };
 
-  // 1) Mover las reservaciones al perro real.
-  const { error: updErr } = await supabase
-    .from("reservaciones")
-    .update({ perro_id: realPerroId })
-    .eq("perro_id", placeholderId);
-  if (updErr) {
-    console.error("[revisar] Error al mover reservaciones:", updErr);
-    return { ok: false, error: ERROR_GENERICO };
-  }
+    // 1) Mover las reservaciones al perro real.
+    const { error: updErr } = await supabase
+      .from("reservaciones")
+      .update({ perro_id: realPerroId })
+      .eq("perro_id", placeholderId);
+    if (updErr) {
+      console.error("[revisar] Error al mover reservaciones:", updErr);
+      return { ok: false, error: ERROR_GENERICO };
+    }
 
-  // 2) Borrar el placeholder (ya sin reservaciones colgando).
-  const { error: delErr } = await supabase.from("perros").delete().eq("id", placeholderId);
-  if (delErr) {
-    console.error("[revisar] Error al borrar el placeholder:", delErr);
-    return { ok: false, error: ERROR_GENERICO };
-  }
+    // 2) Borrar el placeholder (ya sin reservaciones colgando).
+    const { error: delErr } = await supabase.from("perros").delete().eq("id", placeholderId);
+    if (delErr) {
+      console.error("[revisar] Error al borrar el placeholder:", delErr);
+      return { ok: false, error: ERROR_GENERICO };
+    }
 
-  // 3) Limpiar el cliente placeholder si quedó huérfano.
-  if (clienteId) await borrarClienteSiHuerfano(supabase, clienteId);
+    // 3) Limpiar el cliente placeholder si quedó huérfano.
+    if (clienteId) await borrarClienteSiHuerfano(supabase, clienteId);
 
-  revalidar();
-  revalidatePath(`/perros/${realPerroId}`);
-  return { ok: true, data: null };
+    revalidar();
+    revalidatePath(`/perros/${realPerroId}`);
+    return { ok: true, data: null };
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -107,20 +92,19 @@ export async function reasignarPlaceholder(
 // ⚠️ Se pierde ese historial de pagos. Solo para registros basura.
 // --------------------------------------------------------------------------
 export async function eliminarPlaceholder(placeholderId: string): Promise<ActionResult<null>> {
-  const supabase = cliente();
-  if (!supabase) return { ok: false, error: "La base de datos no está configurada." };
+  return withSupabase("revisar", async (supabase) => {
+    const clienteId = await leerPlaceholder(supabase, placeholderId);
+    if (clienteId === "error") return { ok: false, error: ERROR_GENERICO };
 
-  const clienteId = await leerPlaceholder(supabase, placeholderId);
-  if (clienteId === "error") return { ok: false, error: ERROR_GENERICO };
+    const { error } = await supabase.from("perros").delete().eq("id", placeholderId);
+    if (error) {
+      console.error("[revisar] Error al eliminar el placeholder:", error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
 
-  const { error } = await supabase.from("perros").delete().eq("id", placeholderId);
-  if (error) {
-    console.error("[revisar] Error al eliminar el placeholder:", error);
-    return { ok: false, error: ERROR_GENERICO };
-  }
+    if (clienteId) await borrarClienteSiHuerfano(supabase, clienteId);
 
-  if (clienteId) await borrarClienteSiHuerfano(supabase, clienteId);
-
-  revalidar();
-  return { ok: true, data: null };
+    revalidar();
+    return { ok: true, data: null };
+  });
 }

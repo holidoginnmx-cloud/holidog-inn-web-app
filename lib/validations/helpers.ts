@@ -25,29 +25,28 @@ export const fechaOpcional = opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "F
 // "YYYY-MM-DD" obligatoria.
 export const fechaRequerida = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida");
 
+// string | number → number. Vacío/nulo → NaN (para que el .number() falle con
+// el mensaje del schema). Los montos obligatorios usan esto directamente.
+function aNumero(v: unknown): number {
+  if (v === "" || v === undefined || v === null) return Number.NaN;
+  const n = typeof v === "number" ? v : Number(String(v).trim());
+  return Number.isNaN(n) ? Number.NaN : n;
+}
+
 // Monto obligatorio: convierte string → number, debe ser > 0.
 export const montoRequerido = z.preprocess(
-  (v) => {
-    if (v === "" || v === undefined || v === null) return Number.NaN;
-    const n = typeof v === "number" ? v : Number(String(v).trim());
-    return Number.isNaN(n) ? Number.NaN : n;
-  },
+  aNumero,
   z.number().positive("El monto debe ser mayor a 0").max(1_000_000, "Monto fuera de rango"),
 );
 
 // Monto obligatorio que admite 0 (p. ej. precio acordado).
 export const montoNoNegativo = z.preprocess(
-  (v) => {
-    if (v === "" || v === undefined || v === null) return Number.NaN;
-    const n = typeof v === "number" ? v : Number(String(v).trim());
-    return Number.isNaN(n) ? Number.NaN : n;
-  },
+  aNumero,
   z.number().min(0, "No puede ser negativo").max(10_000_000, "Monto fuera de rango"),
 );
 
-// Monto opcional (>= 0): "" → null.
+// Monto opcional (>= 0): "" → null (a diferencia de aNumero, que daría NaN).
 export const montoOpcionalNoNegativo = z.preprocess((v) => {
   if (v === "" || v === undefined || v === null) return null;
-  const n = typeof v === "number" ? v : Number(String(v).trim());
-  return Number.isNaN(n) ? Number.NaN : n;
+  return aNumero(v);
 }, z.number().min(0, "No puede ser negativo").max(10_000_000, "Monto fuera de rango").nullable());

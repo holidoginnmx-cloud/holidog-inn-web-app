@@ -56,20 +56,6 @@ export function hoyISO(): string {
   return local.toISOString().slice(0, 10);
 }
 
-// "YYYY-MM-DD" del primer día del mes actual (zona local).
-export function primerDiaMesISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-// "YYYY-MM-DD" de hace N días (zona local).
-export function haceDiasISO(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-}
-
 // Formatea un Date a "YYYY-MM-DD" en zona local (sin saltos por UTC).
 function isoLocal(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");

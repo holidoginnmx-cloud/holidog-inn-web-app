@@ -11,12 +11,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { COLOR } from "@/lib/chart";
-import { formatMoneda } from "@/lib/utils";
+import { formatCompacto, formatMoneda } from "@/lib/utils";
 
 type Punto = { label: string; ingresos: number; egresos: number; utilidad: number };
-
-const compacto = (v: number) =>
-  new Intl.NumberFormat("es-MX", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 
 export function TendenciaChart({ data }: { data: Punto[] }) {
   return (
@@ -40,7 +37,7 @@ export function TendenciaChart({ data }: { data: Punto[] }) {
           tickLine={false}
           axisLine={false}
           width={44}
-          tickFormatter={(v: number) => compacto(Number(v))}
+          tickFormatter={(v: number) => formatCompacto(Number(v))}
         />
         <Tooltip formatter={(value) => formatMoneda(Number(value))} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
