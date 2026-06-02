@@ -23,8 +23,9 @@ import { TendenciaArea } from "@/components/domain/dashboard/TendenciaArea";
 import { IngresosServicioMensualChart } from "@/components/domain/dashboard/IngresosServicioMensualChart";
 import { TopPerrosTable } from "@/components/domain/dashboard/TopPerrosTable";
 import { EgresosCategoriaChart } from "@/components/domain/dashboard/EgresosCategoriaChart";
-import { TipoCostoDonut } from "@/components/domain/dashboard/TipoCostoDonut";
+import { ResumenCostos } from "@/components/domain/dashboard/ResumenCostos";
 import { ReporteAnual } from "@/components/domain/dashboard/ReporteAnual";
+import { SeccionColapsable } from "@/components/domain/dashboard/SeccionColapsable";
 
 export const dynamic = "force-dynamic";
 
@@ -69,9 +70,8 @@ export default async function DashboardPage({
         .eq("anio", anio),
       supabase
         .from("vw_egresos_por_categoria")
-        .select("categoria, tipo_costo, total")
-        .eq("anio", anio)
-        .eq("mes_num", mes),
+        .select("mes_num, categoria, tipo_costo, total")
+        .eq("anio", anio),
       supabase
         .from("vw_ingresos_por_perro")
         .select("perro_id, perro_nombre, total")
@@ -131,22 +131,29 @@ export default async function DashboardPage({
     };
   });
 
-  const categoria = (porCategoria.data ?? [])
-    .map((r) => ({ categoria: r.categoria ?? "—", total: r.total ?? 0 }))
-    .sort((a, b) => b.total - a.total)
-    .map((r) => ({
-      categoria: r.categoria,
-      total: r.total,
-      pct: egresosMes > 0 ? (r.total / egresosMes) * 100 : 0,
-    }));
-
-  const tipoMap = new Map<TipoCosto, number>();
+  // Egresos por categoría: agregados de TODO el año (detalle secundario).
+  const catMap = new Map<string, number>();
   (porCategoria.data ?? []).forEach((r) => {
-    if (r.tipo_costo) tipoMap.set(r.tipo_costo, (tipoMap.get(r.tipo_costo) ?? 0) + (r.total ?? 0));
+    const c = r.categoria ?? "Sin categoría";
+    catMap.set(c, (catMap.get(c) ?? 0) + (r.total ?? 0));
   });
-  const tipoCosto = TIPO_COSTO_OPTIONS.map((t) => ({ tipo: t, total: tipoMap.get(t) ?? 0 })).filter(
-    (d) => d.total > 0,
-  );
+  const totalEgresosAnio = [...catMap.values()].reduce((s, n) => s + n, 0);
+  const categoria = [...catMap.entries()]
+    .map(([categoria, total]) => ({
+      categoria,
+      total,
+      pct: totalEgresosAnio > 0 ? (total / totalEgresosAnio) * 100 : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  // Egresos por tipo de costo, por mes (base del Resumen de costos estilo Excel).
+  const tipoPorMes = new Map<number, Map<TipoCosto, number>>();
+  (porCategoria.data ?? []).forEach((r) => {
+    if (r.mes_num == null || !r.tipo_costo) return;
+    const m = tipoPorMes.get(r.mes_num) ?? new Map<TipoCosto, number>();
+    m.set(r.tipo_costo, (m.get(r.tipo_costo) ?? 0) + (r.total ?? 0));
+    tipoPorMes.set(r.mes_num, m);
+  });
 
   const topPerros = (porPerro.data ?? []).map((r) => ({
     perroId: r.perro_id,
@@ -167,6 +174,8 @@ export default async function DashboardPage({
     servPorMes.set(r.mes_num, acc);
   });
 
+  const { anio: anioHoy, mes: mesHoy } = mesActual();
+  const mesesConDatos: number[] = [];
   const reporteAnual = {
     anio,
     meses: [] as string[],
@@ -174,26 +183,55 @@ export default async function DashboardPage({
     estetica: [] as number[],
     guarderia: [] as number[],
     egresos: [] as number[],
+    enCurso: [] as boolean[],
   };
   for (let m = 1; m <= 12; m++) {
     const serv = servPorMes.get(m) ?? { hotel: 0, estetica: 0, guarderia: 0 };
     const egr = egrMap.get(k(anio, m)) ?? 0;
     const tieneDatos = serv.hotel + serv.estetica + serv.guarderia > 0 || egr > 0;
     if (!tieneDatos) continue;
+    mesesConDatos.push(m);
     reporteAnual.meses.push(nombreMesCorto(anio, m));
     reporteAnual.hotel.push(serv.hotel);
     reporteAnual.estetica.push(serv.estetica);
     reporteAnual.guarderia.push(serv.guarderia);
     reporteAnual.egresos.push(egr);
+    reporteAnual.enCurso.push(anio === anioHoy && m === mesHoy);
   }
 
-  // Serie mensual para la gráfica de barras apiladas por servicio.
+  // Serie mensual para la gráfica de tendencia (líneas) por servicio.
   const serviciosMensual = reporteAnual.meses.map((label, i) => ({
     label,
     HOTEL: reporteAnual.hotel[i] ?? 0,
     ESTETICA: reporteAnual.estetica[i] ?? 0,
     GUARDERIA: reporteAnual.guarderia[i] ?? 0,
+    enCurso: reporteAnual.enCurso[i] ?? false,
   }));
+
+  // Resumen de costos estilo Excel: % de cada tipo de costo sobre los ingresos
+  // de cada mes + % de utilidad. Reusa los meses con datos del reporte anual.
+  const resumenCostos = {
+    anio,
+    meses: reporteAnual.meses,
+    ingresos: reporteAnual.meses.map(
+      (_, i) =>
+        (reporteAnual.hotel[i] ?? 0) +
+        (reporteAnual.estetica[i] ?? 0) +
+        (reporteAnual.guarderia[i] ?? 0),
+    ),
+    egresos: reporteAnual.egresos,
+    enCurso: reporteAnual.enCurso,
+    porTipo: Object.fromEntries(
+      TIPO_COSTO_OPTIONS.map((t) => [
+        t,
+        reporteAnual.meses.map((_, i) => {
+          // El mes en el índice i corresponde al número de mes m con datos.
+          const m = mesesConDatos[i] ?? 0;
+          return tipoPorMes.get(m)?.get(t) ?? 0;
+        }),
+      ]),
+    ) as Record<TipoCosto, number[]>,
+  };
 
   return (
     <div className="space-y-4">
@@ -229,25 +267,25 @@ export default async function DashboardPage({
           <TopPerrosTable perros={topPerros} />
         </div>
 
-        <div className="lg:col-span-3">
-          <IngresosServicioMensualChart data={serviciosMensual} />
-        </div>
+        <div className="rounded-xl border border-neutral-border bg-white p-4 lg:col-span-3">
+          <p className="text-sm font-medium text-neutral-ink">Resumen de costos</p>
+          <p className="mb-3 text-xs text-neutral-muted">{`% sobre ingresos por mes · ${anio}`}</p>
+          <ResumenCostos data={resumenCostos} />
 
-        <div className="rounded-xl border border-neutral-border bg-white p-4 lg:col-span-2">
-          <p className="text-sm font-medium text-neutral-ink">Egresos por categoría</p>
-          <p className="mb-3 text-xs text-neutral-muted">{`${anio}`}</p>
-          <EgresosCategoriaChart data={categoria} />
-        </div>
-
-        <div className="rounded-xl border border-neutral-border bg-white p-4 lg:col-span-1">
-          <p className="text-sm font-medium text-neutral-ink">Egresos por tipo de costo</p>
-          <p className="mb-3 text-xs text-neutral-muted">Distribución</p>
-          <TipoCostoDonut data={tipoCosto} />
+          {/* Egresos por categoría: detalle secundario (menos relevante), colapsado. */}
+          <SeccionColapsable title={`Egresos por categoría · ${anio}`}>
+            <EgresosCategoriaChart data={categoria} />
+          </SeccionColapsable>
         </div>
 
         <div className="rounded-xl border border-neutral-border bg-white p-4 lg:col-span-3">
           <p className="mb-3 text-sm font-medium text-neutral-ink">{`Reporte anual ${anio}`}</p>
           <ReporteAnual data={reporteAnual} />
+
+          {/* Ingresos por servicio: misma data del reporte, vista de tendencia, colapsada. */}
+          <SeccionColapsable title={`Ingresos por servicio · ${anio}`}>
+            <IngresosServicioMensualChart data={serviciosMensual} />
+          </SeccionColapsable>
         </div>
       </div>
     </div>

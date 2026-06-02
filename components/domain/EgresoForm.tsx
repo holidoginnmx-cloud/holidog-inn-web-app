@@ -10,7 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Combobox, type ComboOption } from "./Combobox";
 import { Pills } from "./Pills";
-import { TIPO_COSTO_OPTIONS, TIPO_COSTO_LABEL, type TipoCosto } from "@/lib/labels";
+import {
+  TIPO_COSTO_OPTIONS,
+  TIPO_COSTO_LABEL,
+  tipoCostoSugerido,
+  type TipoCosto,
+} from "@/lib/labels";
 import { hoyISO } from "@/lib/date";
 import { crearEgreso, actualizarEgreso } from "@/app/(dashboard)/movimientos/actions";
 
@@ -48,6 +53,12 @@ export function EgresoForm({
   const [notas, setNotas] = useState(editar?.notas ?? "");
   const [pending, setPending] = useState(false);
 
+  function onCategoriaChange(value: string | null) {
+    setCategoria(value);
+    const sugerido = tipoCostoSugerido(value);
+    if (sugerido) setTipoCosto(sugerido);
+  }
+
   function reset() {
     setDescripcion("");
     setMonto("");
@@ -78,13 +89,9 @@ export function EgresoForm({
     setPending(false);
 
     if (res.ok) {
-      if (esEdicion) {
-        toast.success("Egreso actualizado");
-        onDone?.();
-      } else {
-        toast.success("Egreso guardado");
-        reset();
-      }
+      toast.success(esEdicion ? "Egreso actualizado" : "Egreso guardado");
+      reset();
+      onDone?.();
       router.refresh();
     } else {
       toast.error(res.error);
@@ -123,7 +130,7 @@ export function EgresoForm({
         <Combobox
           options={opcionesCategoria}
           value={categoria}
-          onChange={setCategoria}
+          onChange={onCategoriaChange}
           placeholder="Selecciona o escribe una categoría"
           searchPlaceholder="Buscar o nueva categoría…"
           emptyText="Escribe para crear una nueva"

@@ -94,7 +94,11 @@ function excelToYMD(v: unknown): string | null {
     return `${v.getUTCFullYear()}-${pad(v.getUTCMonth() + 1)}-${pad(v.getUTCDate())}`;
   }
   if (typeof v === "number") {
-    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    // La parte entera del serial es la fecha; la fracción es la hora. Hay que
+    // truncar (floor), no redondear: con Math.round un egreso capturado después
+    // del mediodía se empujaba al día siguiente y, en el último día del mes,
+    // cruzaba al mes siguiente (perdíamos esas filas en los totales mensuales).
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
   }
   return null;

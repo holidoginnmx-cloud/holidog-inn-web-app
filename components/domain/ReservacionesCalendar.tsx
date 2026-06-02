@@ -135,7 +135,14 @@ function ServiciosSection({ lista }: { lista: ResvLite[] }) {
 // Leyenda de colores de ocupación + indicador de servicios de día.
 function LeyendaOcupacion() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-neutral-muted">
+    <div className="space-y-2 text-xs text-neutral-muted">
+      {/* Qué significa cada número de la celda. */}
+      <p className="leading-relaxed">
+        <span className="font-semibold text-neutral-ink">Esquina:</span> día del mes ·{" "}
+        <span className="font-semibold text-neutral-ink">número grande:</span> perros en hotel ese
+        día
+      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       <span className="flex items-center gap-1.5">
         <span className="size-3 rounded-sm bg-emerald-100 ring-1 ring-emerald-300" aria-hidden />
         Libre
@@ -149,9 +156,10 @@ function LeyendaOcupacion() {
         Lleno
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="size-2 rounded-full bg-brand-mustard" aria-hidden />
+        <span className="size-2.5 rounded-full bg-brand-mustard" aria-hidden />
         Estética / Guardería
       </span>
+      </div>
     </div>
   );
 }
@@ -360,7 +368,7 @@ function VistaSemana({
               <span className="text-lg font-bold text-neutral-ink">{count}</span>
               <Barra count={count} cupo={cupo} />
               <span
-                className={cn("size-1.5 rounded-full", tieneServ ? "bg-brand-mustard" : "bg-transparent")}
+                className={cn("size-2.5 rounded-full", tieneServ ? "bg-brand-mustard" : "bg-transparent")}
                 aria-hidden
               />
             </button>
@@ -463,33 +471,37 @@ function VistaMes({
               type="button"
               onClick={() => setSel(iso)}
               className={cn(
-                "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-md border transition-colors",
+                "relative flex aspect-square flex-col items-center justify-center rounded-md border transition-colors md:aspect-auto md:h-20",
                 focusRing,
                 count > 0 ? NIVEL_CELDA[nivel] : "bg-white text-neutral-ink",
                 activo ? "border-brand-teal ring-1 ring-brand-teal" : "border-neutral-border",
               )}
             >
+              {/* Día del mes: esquina superior izquierda, como un calendario. */}
               <span
                 className={cn(
-                  "text-xs font-medium leading-none",
-                  esHoy ? "font-bold text-brand-teal underline" : "text-neutral-muted",
+                  "absolute left-1.5 top-1 text-[11px] font-medium leading-none",
+                  esHoy
+                    ? "flex size-5 -translate-x-0.5 items-center justify-center rounded-full bg-brand-teal font-bold text-white"
+                    : "text-neutral-muted",
                 )}
               >
                 {diaDelMes(iso)}
               </span>
-              <span
-                className={cn(
-                  "text-xl font-extrabold leading-none tabular-nums",
-                  count === 0 && "text-base font-normal text-neutral-muted/40",
-                )}
-              >
-                {count > 0 ? count : "·"}
-              </span>
+
+              {/* Indicador de estética / guardería: esquina superior derecha. */}
               {tieneServ && (
                 <span
-                  className="absolute right-1 top-1 size-1.5 rounded-full bg-brand-mustard"
+                  className="absolute right-1 top-1 size-3 rounded-full bg-brand-mustard ring-2 ring-white"
                   aria-hidden
                 />
+              )}
+
+              {/* Perros en hotel ese día (número grande). */}
+              {count > 0 ? (
+                <span className="text-base font-extrabold tabular-nums md:text-xl">{count}</span>
+              ) : (
+                <span className="text-sm font-normal text-neutral-muted/40 md:text-base">·</span>
               )}
             </button>
           );

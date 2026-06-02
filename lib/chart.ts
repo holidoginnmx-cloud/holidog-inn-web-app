@@ -20,11 +20,14 @@ export const COLOR = {
   mustard: "#EB9B22",
 } as const;
 
-// Ingresos: familia verde. Tres tonos para distinguir servicios.
+// Ingresos por servicio: un color CLARAMENTE distinto por servicio.
+// Antes eran tres tonos de verde casi iguales (ilegibles en móvil). Usamos
+// teal y mustard de marca + un verde para máxima diferenciación. Sigue sin
+// tocar la familia roja (egresos), así que ingreso vs egreso se mantiene claro.
 export const SERVICIO_COLOR: Record<Servicio, string> = {
-  HOTEL: COLOR.green700,
-  ESTETICA: COLOR.green500,
-  GUARDERIA: COLOR.green400,
+  HOTEL: COLOR.teal, // #063F52
+  ESTETICA: COLOR.mustard, // #EB9B22
+  GUARDERIA: COLOR.ingreso, // #16A34A verde
 };
 
 // Egresos: familia roja. Un tono por tipo de costo.
@@ -64,3 +67,12 @@ export function colorTipoCosto(tipo: TipoCosto, pct: number): string {
 
 // Margen de utilidad mínimo saludable (%). Por debajo de esto = alerta.
 export const UMBRAL_MARGEN_MIN = 10;
+
+// Relleno claro estilo Excel para las celdas de las tablas del dashboard:
+// verde dentro de rango / utilidad, rojo fuera de rango / pérdida. `alertaBold`
+// para cuando la celda no aplica su propio font-semibold.
+export const CELDA = {
+  ok: "bg-[#E7F6EC] text-[#15803D]",
+  alerta: "bg-[#FCE8E8] text-[#B91C1C]",
+  alertaBold: "bg-[#FCE8E8] font-semibold text-[#B91C1C]",
+} as const;

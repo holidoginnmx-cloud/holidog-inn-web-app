@@ -61,3 +61,42 @@ export const CATEGORIAS_CONOCIDAS = [
   "CAFE VAINILLA",
   "mantenimiento",
 ] as const;
+
+// Mapeo categoría → tipo de costo, derivado del histórico del Excel. Al elegir
+// una categoría conocida se autoselecciona su tipo de costo (el usuario puede
+// sobreescribirlo). Las llaves se normalizan (trim + minúsculas) para tolerar
+// variaciones de espacios/acentos vistas en el Excel.
+const CATEGORIA_TIPO_COSTO: Record<string, TipoCosto> = {
+  "transporte / logística": "VARIABLE",
+  "bano/ estetica": "VARIABLE",
+  "rh / asistente": "SUELDO",
+  "servicios básicos": "FIJO",
+  "limpieza / insumos": "VARIABLE",
+  limpieza: "VARIABLE",
+  "administración / oficina": "FIJO",
+  "marketing / ads": "MARKETING",
+  "marketing / merchandising": "MARKETING",
+  marketing: "MARKETING",
+  "reinvención / mobiliario": "REINVERSION",
+  "reinvención / obra": "REINVERSION",
+  "reinvención / equipamiento": "REINVERSION",
+  "reinvención / remodelación": "REINVERSION",
+  "tienda/ estetica": "VARIABLE",
+  festejo: "VARIABLE",
+  "cafe vainilla": "VARIABLE",
+  mantenimiento: "VARIABLE",
+  "horas extra": "FIJO",
+  posada: "VARIABLE",
+  "inversion/administrativa": "REINVERSION",
+  "mkt y y atencion al cliente": "SUELDO",
+  "administracion y cdc": "SUELDO",
+  operativo: "SUELDO",
+  "registro de marca": "REINVERSION",
+  "cancelacion de servicio": "VARIABLE",
+};
+
+/** Sugiere el tipo de costo para una categoría conocida; null si no hay match. */
+export function tipoCostoSugerido(categoria: string | null | undefined): TipoCosto | null {
+  if (!categoria) return null;
+  return CATEGORIA_TIPO_COSTO[categoria.trim().toLowerCase()] ?? null;
+}

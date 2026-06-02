@@ -123,6 +123,7 @@ export function PagoForm({
     if (res.ok) {
       toast.success("Ingreso guardado");
       reset();
+      onDone?.();
       router.refresh();
     } else {
       toast.error(res.error);

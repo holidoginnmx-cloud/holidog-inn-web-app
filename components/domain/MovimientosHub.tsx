@@ -138,8 +138,8 @@ export function MovimientosHub({
   const descSheet = editando
     ? "Modifica los datos y guarda los cambios."
     : esIngresos
-      ? "Registra un pago. El formulario queda listo para capturar otro."
-      : "Registra un gasto. El formulario queda listo para capturar otro.";
+      ? "Registra un pago."
+      : "Registra un gasto.";
 
   return (
     <div className="space-y-4">
@@ -273,9 +273,9 @@ export function MovimientosHub({
                 onDone={() => setOpen(false)}
               />
             ) : esIngresos ? (
-              <PagoForm perros={perros} />
+              <PagoForm perros={perros} onDone={() => setOpen(false)} />
             ) : (
-              <EgresoForm categorias={categorias} />
+              <EgresoForm categorias={categorias} onDone={() => setOpen(false)} />
             )}
           </div>
 
