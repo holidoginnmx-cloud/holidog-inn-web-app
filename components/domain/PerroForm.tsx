@@ -62,6 +62,7 @@ type Props =
       clienteId: string;
       initial: PerroFormValues;
       fotoActualUrl: string | null;
+      cartillaActualUrl: string | null;
     };
 
 const inputSelectClass =
@@ -83,6 +84,10 @@ export function PerroForm(props: Props) {
   const [preview, setPreview] = useState<string | null>(
     props.mode === "editar" ? props.fotoActualUrl : null,
   );
+  const [cartillaFile, setCartillaFile] = useState<File | null>(null);
+  const [cartillaPreview, setCartillaPreview] = useState<string | null>(
+    props.mode === "editar" ? props.cartillaActualUrl : null,
+  );
   const [pending, setPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -98,6 +103,16 @@ export function PerroForm(props: Props) {
       return URL.createObjectURL(f);
     });
     setFile(f);
+  }
+
+  function onPickCartilla(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setCartillaPreview((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
+    setCartillaFile(f);
   }
 
   async function onValid(values: PerroFormValues) {
@@ -126,6 +141,11 @@ export function PerroForm(props: Props) {
       if (file) {
         const comprimida = await comprimirImagen(file);
         fd.set("foto", comprimida);
+      }
+
+      if (cartillaFile) {
+        const comprimida = await comprimirImagen(cartillaFile);
+        fd.set("cartilla", comprimida);
       }
 
       const res =
@@ -331,6 +351,36 @@ export function PerroForm(props: Props) {
                 className="bg-white"
                 {...register("perro.cartilla_vence")}
               />
+            </div>
+
+            {/* Foto de la cartilla */}
+            <div className="space-y-2">
+              <Label>Foto de la cartilla (opcional)</Label>
+              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-neutral-border bg-white">
+                {cartillaPreview ? (
+                  <Image
+                    src={cartillaPreview}
+                    alt="Vista previa de la cartilla"
+                    fill
+                    sizes="(max-width: 448px) 100vw, 448px"
+                    unoptimized
+                    className="object-contain"
+                  />
+                ) : (
+                  <span className="flex size-full items-center justify-center text-neutral-muted">
+                    <ImagePlus className="size-7" aria-hidden />
+                  </span>
+                )}
+              </div>
+              <label className="inline-block cursor-pointer text-sm font-medium text-brand-teal">
+                {cartillaPreview ? "Cambiar foto de cartilla" : "Agregar foto de cartilla"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickCartilla}
+                />
+              </label>
             </div>
           </div>
         </fieldset>

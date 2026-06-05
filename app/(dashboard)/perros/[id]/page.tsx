@@ -5,6 +5,8 @@ import { ArrowLeft, Pencil, CalendarPlus, ShieldCheck, ShieldAlert } from "lucid
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { TallaBadge } from "@/components/domain/TallaBadge";
+import { PagoBadge } from "@/components/domain/PagoBadge";
+import { sumarPagos } from "@/lib/reservacion";
 import { SEXO_LABEL, inicial, type Talla, type Sexo } from "@/lib/perro";
 import { formatFecha, calcularEdad, estadoCartilla } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
@@ -52,7 +54,7 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
 
   const { data: reservaciones } = await supabase
     .from("reservaciones")
-    .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado")
+    .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, pagos(monto)")
     .eq("perro_id", id)
     .order("fecha_inicio", { ascending: false })
     .limit(5);
@@ -173,6 +175,24 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {/* Foto de la cartilla */}
+      {perro.cartilla_foto_url && (
+        <a
+          href={perro.cartilla_foto_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl border border-neutral-border bg-white"
+        >
+          <Image
+            src={perro.cartilla_foto_url}
+            alt={`Cartilla de ${perro.nombre}`}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-contain"
+          />
+        </a>
+      )}
+
       {/* Nueva reservación */}
       <Button asChild className="w-full">
         <Link href={`/reservaciones/nueva?perro=${id}`}>
@@ -200,10 +220,11 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
                     {r.fecha_fin ? ` – ${formatFecha(r.fecha_fin)}` : ""}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="flex flex-col items-end gap-1 text-right">
                   <p className="text-sm font-medium text-brand-ingreso">
                     {formatMoneda(r.precio_acordado)}
                   </p>
+                  <PagoBadge precioAcordado={r.precio_acordado} pagado={sumarPagos(r.pagos)} />
                   <p className="text-xs text-neutral-muted">{ESTADO_LABEL[r.estado] ?? r.estado}</p>
                 </div>
               </li>

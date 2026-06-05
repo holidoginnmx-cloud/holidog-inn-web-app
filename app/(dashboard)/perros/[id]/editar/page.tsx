@@ -69,6 +69,7 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
         clienteId={perro.cliente_id}
         initial={initial}
         fotoActualUrl={perro.foto_url}
+        cartillaActualUrl={perro.cartilla_foto_url}
       />
     </div>
   );

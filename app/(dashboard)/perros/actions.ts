@@ -35,10 +35,11 @@ function leerFormData(formData: FormData) {
   };
 }
 
-// Sube la foto (ya comprimida en cliente) al bucket público y devuelve su URL.
-async function subirFoto(supabase: DB, file: File): Promise<string | null> {
+// Sube un archivo (ya comprimido en cliente) al bucket público y devuelve su URL.
+// `prefix` separa las carpetas dentro del bucket (p. ej. "cartillas/").
+async function subirFoto(supabase: DB, file: File, prefix = ""): Promise<string | null> {
   const ext = file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${crypto.randomUUID()}.${ext}`;
+  const path = `${prefix}${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, file, { contentType: file.type, upsert: false });
@@ -49,9 +50,9 @@ async function subirFoto(supabase: DB, file: File): Promise<string | null> {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-function fotoDeFormData(formData: FormData): File | null {
-  const foto = formData.get("foto");
-  return foto instanceof File && foto.size > 0 ? foto : null;
+function archivoDeFormData(formData: FormData, campo: string): File | null {
+  const f = formData.get(campo);
+  return f instanceof File && f.size > 0 ? f : null;
 }
 
 // --------------------------------------------------------------------------
@@ -65,9 +66,13 @@ export async function crearClienteYPerro(
   const { cliente, perro } = v.data;
 
   return withSupabase("perros", async (supabase) => {
-    // 1) Foto (opcional).
-    const file = fotoDeFormData(formData);
-    const foto_url = file ? await subirFoto(supabase, file) : null;
+    // 1) Fotos (opcionales): la del perro y la de la cartilla.
+    const fotoFile = archivoDeFormData(formData, "foto");
+    const cartillaFile = archivoDeFormData(formData, "cartilla");
+    const foto_url = fotoFile ? await subirFoto(supabase, fotoFile) : null;
+    const cartilla_foto_url = cartillaFile
+      ? await subirFoto(supabase, cartillaFile, "cartillas/")
+      : null;
 
     // 2) Cliente.
     const { data: clienteRow, error: clienteErr } = await supabase
@@ -83,7 +88,7 @@ export async function crearClienteYPerro(
     // 3) Perro (ligado al cliente). La talla la calcula la BD.
     const { data: perroRow, error: perroErr } = await supabase
       .from("perros")
-      .insert({ ...perro, cliente_id: clienteRow.id, foto_url })
+      .insert({ ...perro, cliente_id: clienteRow.id, foto_url, cartilla_foto_url })
       .select("id")
       .single();
     if (perroErr || !perroRow) {
@@ -111,8 +116,12 @@ export async function actualizarClienteYPerro(
   const { cliente, perro } = v.data;
 
   return withSupabase("perros", async (supabase) => {
-    const file = fotoDeFormData(formData);
-    const foto_url = file ? await subirFoto(supabase, file) : null;
+    const fotoFile = archivoDeFormData(formData, "foto");
+    const cartillaFile = archivoDeFormData(formData, "cartilla");
+    const foto_url = fotoFile ? await subirFoto(supabase, fotoFile) : null;
+    const cartilla_foto_url = cartillaFile
+      ? await subirFoto(supabase, cartillaFile, "cartillas/")
+      : null;
 
     const { error: clienteErr } = await supabase
       .from("clientes")
@@ -125,7 +134,11 @@ export async function actualizarClienteYPerro(
 
     const { error: perroErr } = await supabase
       .from("perros")
-      .update({ ...perro, ...(foto_url ? { foto_url } : {}) })
+      .update({
+        ...perro,
+        ...(foto_url ? { foto_url } : {}),
+        ...(cartilla_foto_url ? { cartilla_foto_url } : {}),
+      })
       .eq("id", perroId);
     if (perroErr) {
       console.error("[perros] Error al actualizar perro:", perroErr);
