@@ -12,6 +12,12 @@ export type ResvLite = {
   // Total cotizado de la reservación. Opcional: el calendario no lo usa, pero
   // el historial lo muestra. Los formularios arman ResvLite sin este campo.
   precioAcordado?: number;
+  // Total ya pagado (SUM de pagos). Junto con precioAcordado deriva el estado
+  // de pago (Pagada / Pendiente). Opcional: los formularios no lo arman.
+  pagado?: number;
+  // Hora de check-in / check-out ("HH:MM[:SS]"). Opcionales.
+  horaCheckIn?: string | null;
+  horaCheckOut?: string | null;
 };
 
 // Reservaciones de HOTEL que ocupan un lugar en `fechaISO`.

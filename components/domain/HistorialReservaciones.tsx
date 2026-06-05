@@ -7,6 +7,7 @@ import { formatMoneda } from "@/lib/utils";
 import { formatFecha, etiquetaMesAnio } from "@/lib/date";
 import { SERVICIO_LABEL, SERVICIO_OPTIONS } from "@/lib/labels";
 import type { ResvLite } from "@/lib/ocupacion";
+import { PagoBadge } from "./PagoBadge";
 
 const FILTRO_PILLS = [
   { value: "TODOS", label: "Todos" },
@@ -70,9 +71,14 @@ export function HistorialReservaciones({ reservaciones }: { reservaciones: ResvL
                         : ""}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-neutral-ink">
-                    {formatMoneda(r.precioAcordado ?? 0)}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-sm font-semibold text-neutral-ink">
+                      {formatMoneda(r.precioAcordado ?? 0)}
+                    </span>
+                    {r.pagado != null && r.precioAcordado != null && (
+                      <PagoBadge precioAcordado={r.precioAcordado} pagado={r.pagado} />
+                    )}
+                  </div>
                 </Link>
               </li>
             );

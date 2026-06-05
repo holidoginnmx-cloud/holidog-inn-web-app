@@ -20,10 +20,12 @@ import {
   type PagoTipo,
 } from "@/lib/labels";
 import { formatFecha, hoyISO } from "@/lib/date";
+import { formatMoneda } from "@/lib/utils";
+import { estadoPago } from "@/lib/reservacion";
 import {
   crearPago,
   actualizarPago,
-  getReservacionesAbiertas,
+  getReservacionesDelPerro,
   type ReservacionAbierta,
 } from "@/app/(dashboard)/movimientos/actions";
 
@@ -71,7 +73,7 @@ export function PagoForm({
     setReservacionId("nueva");
     setReservaciones([]);
     setLoadingResv(true);
-    const res = await getReservacionesAbiertas(id);
+    const res = await getReservacionesDelPerro(id);
     if (res.ok) setReservaciones(res.data);
     setLoadingResv(false);
   }
@@ -164,12 +166,22 @@ export function PagoForm({
               disabled={!perroId || loadingResv}
             >
               <option value="nueva">➕ Crear nueva reservación con este pago</option>
-              {reservaciones.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {SERVICIO_LABEL[r.servicio]} · {formatFecha(r.fecha_inicio)} ·{" "}
-                  {ESTADO_LABEL[r.estado]}
-                </option>
-              ))}
+              {reservaciones.map((r) => {
+                const ep = estadoPago(r.precio_acordado, r.pagado);
+                const saldoTxt =
+                  ep.key === "PENDIENTE"
+                    ? ` · faltan ${formatMoneda(ep.saldo)}`
+                    : ep.key === "PAGADA" || ep.key === "SALDO_FAVOR"
+                      ? " · pagada"
+                      : "";
+                return (
+                  <option key={r.id} value={r.id}>
+                    {SERVICIO_LABEL[r.servicio]} · {formatFecha(r.fecha_inicio)} ·{" "}
+                    {ESTADO_LABEL[r.estado]}
+                    {saldoTxt}
+                  </option>
+                );
+              })}
             </select>
             {loadingResv && <p className="text-xs text-neutral-muted">Cargando reservaciones…</p>}
           </div>

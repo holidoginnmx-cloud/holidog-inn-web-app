@@ -5,6 +5,7 @@ import { type ActionResult, ERROR_GENERICO, validar, withSupabase } from "@/lib/
 import { pagoInputSchema, pagoUpdateSchema } from "@/lib/validations/pago";
 import { egresoInputSchema } from "@/lib/validations/egreso";
 import type { Servicio, ReservacionEstado } from "@/lib/labels";
+import { sumarPagos } from "@/lib/reservacion";
 
 export type ReservacionAbierta = {
   id: string;
@@ -13,6 +14,7 @@ export type ReservacionAbierta = {
   fecha_fin: string | null;
   estado: ReservacionEstado;
   precio_acordado: number;
+  pagado: number;
 };
 
 // --------------------------------------------------------------------------
@@ -133,24 +135,36 @@ export async function actualizarEgreso(
 }
 
 // --------------------------------------------------------------------------
-// Reservaciones abiertas de un perro (para el dropdown del form de ingreso).
+// Reservaciones de un perro para el dropdown del form de ingreso. Incluye las
+// FINALIZADAS (solo se excluyen las canceladas) para poder registrar pagos
+// tardíos —ej. la mascota se fue y el cliente pagó días después—. Trae el total
+// pagado para mostrar el saldo pendiente en el selector.
 // --------------------------------------------------------------------------
-export async function getReservacionesAbiertas(
+export async function getReservacionesDelPerro(
   perroId: string,
 ): Promise<ActionResult<ReservacionAbierta[]>> {
   return withSupabase("movimientos", async (supabase) => {
     const { data, error } = await supabase
       .from("reservaciones")
-      .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado")
+      .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, pagos(monto)")
       .eq("perro_id", perroId)
-      .in("estado", ["RESERVADA", "EN_CURSO"])
+      .neq("estado", "CANCELADA")
       .order("fecha_inicio", { ascending: false });
 
     if (error) {
       console.error("[movimientos] Error al cargar reservaciones:", error);
       return { ok: false, error: ERROR_GENERICO };
     }
-    return { ok: true, data: data ?? [] };
+    const reservaciones: ReservacionAbierta[] = (data ?? []).map((r) => ({
+      id: r.id,
+      servicio: r.servicio,
+      fecha_inicio: r.fecha_inicio,
+      fecha_fin: r.fecha_fin,
+      estado: r.estado,
+      precio_acordado: r.precio_acordado,
+      pagado: sumarPagos(r.pagos),
+    }));
+    return { ok: true, data: reservaciones };
   });
 }
 
