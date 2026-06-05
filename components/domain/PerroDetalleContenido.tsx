@@ -103,6 +103,10 @@ export function PerroDetalleContenido({
   const { perro, cliente, reservaciones } = detalle;
   const edad = calcularEdad(perro.fecha_nacimiento);
   const cartilla = estadoCartilla(perro.cartilla_vigente, perro.cartilla_vence);
+  const desparasitacion = estadoCartilla(
+    perro.desparasitacion_vigente,
+    perro.desparasitacion_vence,
+  );
 
   return (
     <div className="space-y-5">
@@ -200,6 +204,37 @@ export function PerroDetalleContenido({
           </p>
           {perro.cartilla_vence && (
             <p className="text-neutral-muted">Vence el {formatFecha(perro.cartilla_vence)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Desparasitación */}
+      <div
+        className={`flex items-center gap-3 rounded-xl border p-4 ${
+          desparasitacion === "vigente"
+            ? "border-emerald-200 bg-emerald-50"
+            : desparasitacion === "por_vencer"
+              ? "border-amber-200 bg-amber-50"
+              : "border-rose-200 bg-rose-50"
+        }`}
+      >
+        {desparasitacion === "vencida" ? (
+          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
+        ) : (
+          <ShieldCheck className="size-5 text-emerald-600" aria-hidden />
+        )}
+        <div className="text-sm">
+          <p className="font-medium text-neutral-ink">
+            {desparasitacion === "vencida"
+              ? "Desparasitación no vigente"
+              : desparasitacion === "por_vencer"
+                ? "Desparasitación por vencer"
+                : "Desparasitación vigente"}
+          </p>
+          {perro.desparasitacion_vence && (
+            <p className="text-neutral-muted">
+              Vence el {formatFecha(perro.desparasitacion_vence)}
+            </p>
           )}
         </div>
       </div>

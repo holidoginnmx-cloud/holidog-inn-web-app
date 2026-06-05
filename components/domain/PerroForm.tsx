@@ -30,8 +30,11 @@ export type PerroFormValues = {
     veterinario: string;
     esterilizado: "" | "SI" | "NO";
     notas: string;
+    domicilio: string;
     cartilla_vigente: boolean;
     cartilla_vence: string;
+    desparasitacion_vigente: boolean;
+    desparasitacion_vence: string;
   };
 };
 
@@ -49,8 +52,11 @@ export const VALORES_VACIOS: PerroFormValues = {
     veterinario: "",
     esterilizado: "",
     notas: "",
+    domicilio: "",
     cartilla_vigente: false,
     cartilla_vence: "",
+    desparasitacion_vigente: false,
+    desparasitacion_vence: "",
   },
 };
 
@@ -137,6 +143,11 @@ export function PerroForm(props: Props) {
       fd.set("perro.notas", values.perro.notas);
       fd.set("perro.cartilla_vigente", values.perro.cartilla_vigente ? "true" : "false");
       fd.set("perro.cartilla_vence", values.perro.cartilla_vence);
+      fd.set(
+        "perro.desparasitacion_vigente",
+        values.perro.desparasitacion_vigente ? "true" : "false",
+      );
+      fd.set("perro.desparasitacion_vence", values.perro.desparasitacion_vence);
 
       if (file) {
         const comprimida = await comprimirImagen(file);
@@ -325,6 +336,19 @@ export function PerroForm(props: Props) {
             <Textarea id="perro-notas" rows={2} className="bg-white" {...register("perro.notas")} />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="perro-domicilio">Domicilio (opcional)</Label>
+            <Textarea
+              id="perro-domicilio"
+              rows={2}
+              className="bg-white"
+              {...register("perro.domicilio")}
+            />
+            <p className="text-neutral-muted text-xs">
+              Para cuando el cliente pide que pasen por su mascota.
+            </p>
+          </div>
+
           {/* Cartilla */}
           <div className="space-y-3 rounded-md border border-neutral-border p-3">
             <div className="flex items-center justify-between">
@@ -381,6 +405,35 @@ export function PerroForm(props: Props) {
                   onChange={onPickCartilla}
                 />
               </label>
+            </div>
+          </div>
+
+          {/* Desparasitación */}
+          <div className="space-y-3 rounded-md border border-neutral-border p-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="perro-desparasitacion" className="cursor-pointer">
+                Desparasitación vigente
+              </Label>
+              <Controller
+                control={control}
+                name="perro.desparasitacion_vigente"
+                render={({ field }) => (
+                  <Switch
+                    id="perro-desparasitacion"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="perro-desparasitacion-vence">Vence (opcional)</Label>
+              <Input
+                id="perro-desparasitacion-vence"
+                type="date"
+                className="bg-white"
+                {...register("perro.desparasitacion_vence")}
+              />
             </div>
           </div>
         </fieldset>

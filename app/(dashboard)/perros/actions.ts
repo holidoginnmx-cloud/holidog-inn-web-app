@@ -29,8 +29,11 @@ function leerFormData(formData: FormData) {
       veterinario: g("perro.veterinario"),
       esterilizado: g("perro.esterilizado"),
       notas: g("perro.notas"),
+      domicilio: g("perro.domicilio"),
       cartilla_vigente: g("perro.cartilla_vigente"),
       cartilla_vence: g("perro.cartilla_vence"),
+      desparasitacion_vigente: g("perro.desparasitacion_vigente"),
+      desparasitacion_vence: g("perro.desparasitacion_vence"),
     },
   };
 }

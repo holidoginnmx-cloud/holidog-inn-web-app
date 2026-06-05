@@ -45,8 +45,11 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
       veterinario: perro.veterinario ?? "",
       esterilizado: perro.esterilizado == null ? "" : perro.esterilizado ? "SI" : "NO",
       notas: perro.notas ?? "",
+      domicilio: perro.domicilio ?? "",
       cartilla_vigente: perro.cartilla_vigente,
       cartilla_vence: perro.cartilla_vence ?? "",
+      desparasitacion_vigente: perro.desparasitacion_vigente,
+      desparasitacion_vence: perro.desparasitacion_vence ?? "",
     },
   };
 

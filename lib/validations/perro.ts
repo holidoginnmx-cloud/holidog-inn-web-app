@@ -34,8 +34,11 @@ export const perroInputSchema = z.object({
   veterinario: opcional(z.string().max(120)),
   esterilizado: esterilizadoOpcional,
   notas: opcional(z.string().max(1000)),
+  domicilio: opcional(z.string().max(300)),
   cartilla_vigente: checkbox,
   cartilla_vence: fechaOpcional,
+  desparasitacion_vigente: checkbox,
+  desparasitacion_vence: fechaOpcional,
 });
 
 export type PerroInput = z.infer<typeof perroInputSchema>;
