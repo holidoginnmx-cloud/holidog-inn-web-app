@@ -22,7 +22,7 @@ export function TendenciaArea({ data }: { data: Punto[] }) {
       {/* flex-1 + min-h: en escritorio el chart crece para llenar la tarjeta
           (que se estira a la altura del Top perros); en móvil mantiene 220px. */}
       <div className="min-h-[220px] flex-1">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 220 }}>
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="areaIngresos" x1="0" y1="0" x2="0" y2="1">

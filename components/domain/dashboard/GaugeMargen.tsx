@@ -16,7 +16,7 @@ export function GaugeMargen({ margen }: { margen: number }) {
     <div className="rounded-xl border border-neutral-border bg-white p-4">
       <p className="text-sm text-neutral-muted">Margen de utilidad</p>
       <div className="relative mx-auto mt-1 h-28">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 300, height: 112 }}>
           <RadialBarChart
             innerRadius="72%"
             outerRadius="100%"
