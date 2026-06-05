@@ -3,6 +3,7 @@ import {
   opcional,
   fechaRequerida,
   fechaOpcional,
+  horaOpcional,
   montoNoNegativo,
   montoOpcionalNoNegativo,
 } from "./helpers";
@@ -16,6 +17,8 @@ export const reservacionInputSchema = z
     servicio: z.enum(SERVICIO_OPTIONS),
     fecha_inicio: fechaRequerida,
     fecha_fin: fechaOpcional,
+    hora_check_in: horaOpcional,
+    hora_check_out: horaOpcional,
     precio_acordado: montoNoNegativo,
     anticipo_acordado: montoOpcionalNoNegativo,
     estado: z.enum(ESTADO_OPTIONS),
@@ -31,3 +34,9 @@ export const reservacionInputSchema = z
   });
 
 export type ReservacionInput = z.infer<typeof reservacionInputSchema>;
+
+// Solo las horas de check-in/out, para el editor rápido del calendario.
+export const horasReservacionSchema = z.object({
+  hora_check_in: horaOpcional,
+  hora_check_out: horaOpcional,
+});

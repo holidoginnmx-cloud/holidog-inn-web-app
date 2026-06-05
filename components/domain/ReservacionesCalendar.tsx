@@ -21,8 +21,11 @@ import {
   diaSemanaLargo,
   etiquetaMesAnio,
   formatFecha,
+  formatHora,
 } from "@/lib/date";
 import { SERVICIO_LABEL, ESTADO_LABEL } from "@/lib/labels";
+import { PagoBadge } from "./PagoBadge";
+import { HoraQuickEdit } from "./HoraQuickEdit";
 
 type Vista = "hoy" | "semana" | "mes";
 const VISTA_PILLS = [
@@ -97,11 +100,54 @@ function FilaResv({ r }: { r: ResvLite }) {
             {SERVICIO_LABEL[r.servicio]} · {formatFecha(r.fecha_inicio)}
             {r.fecha_fin ? ` – ${formatFecha(r.fecha_fin)}` : ""}
           </p>
+          {(r.horaCheckIn || r.horaCheckOut) && (
+            <p className="truncate text-xs text-neutral-muted">
+              {r.horaCheckIn ? `Entrada ${formatHora(r.horaCheckIn)}` : ""}
+              {r.horaCheckIn && r.horaCheckOut ? " · " : ""}
+              {r.horaCheckOut ? `Salida ${formatHora(r.horaCheckOut)}` : ""}
+            </p>
+          )}
         </div>
-        <span className="shrink-0 rounded-full bg-neutral-sand px-2 py-0.5 text-xs text-neutral-muted">
-          {ESTADO_LABEL[r.estado]}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="rounded-full bg-neutral-sand px-2 py-0.5 text-xs text-neutral-muted">
+            {ESTADO_LABEL[r.estado]}
+          </span>
+          {r.pagado != null && r.precioAcordado != null && (
+            <PagoBadge precioAcordado={r.precioAcordado} pagado={r.pagado} />
+          )}
+        </div>
       </Link>
+    </li>
+  );
+}
+
+// Fila de check-in / check-out de hoy: datos del perro (enlace) + editor rápido
+// de la hora correspondiente, sin abrir la reservación completa.
+function FilaCheckHora({
+  r,
+  campo,
+  label,
+}: {
+  r: ResvLite;
+  campo: "hora_check_in" | "hora_check_out";
+  label: string;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-2 rounded-lg border border-neutral-border bg-white p-3">
+      <Link href={`/reservaciones/${r.id}/editar`} className="min-w-0 flex-1">
+        <p className="truncate font-medium text-neutral-ink">{r.perroNombre ?? "Sin perro"}</p>
+        <p className="truncate text-xs text-neutral-muted">
+          {SERVICIO_LABEL[r.servicio]} · {formatFecha(r.fecha_inicio)}
+        </p>
+      </Link>
+      <HoraQuickEdit
+        reservacionId={r.id}
+        perroId={r.perroId}
+        campo={campo}
+        label={label}
+        horaCheckIn={r.horaCheckIn}
+        horaCheckOut={r.horaCheckOut}
+      />
     </li>
   );
 }
@@ -224,7 +270,7 @@ function VistaHoy({
         ) : (
           <ul className="space-y-2">
             {checkIns.map((r) => (
-              <FilaResv key={r.id} r={r} />
+              <FilaCheckHora key={r.id} r={r} campo="hora_check_in" label="Hora de entrada" />
             ))}
           </ul>
         )}
@@ -239,7 +285,7 @@ function VistaHoy({
         ) : (
           <ul className="space-y-2">
             {checkOuts.map((r) => (
-              <FilaResv key={r.id} r={r} />
+              <FilaCheckHora key={r.id} r={r} campo="hora_check_out" label="Hora de salida" />
             ))}
           </ul>
         )}

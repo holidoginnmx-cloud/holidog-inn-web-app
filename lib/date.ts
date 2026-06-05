@@ -49,6 +49,12 @@ export function estadoCartilla(
   return "vigente";
 }
 
+// Hora "HH:MM[:SS]" (de un campo time de Postgres) → "HH:MM". "—" si null.
+export function formatHora(value: string | null | undefined): string {
+  if (!value) return "—";
+  return value.slice(0, 5);
+}
+
 // Fecha de hoy en formato "YYYY-MM-DD" (zona local, sin corrimiento UTC).
 export function hoyISO(): string {
   const d = new Date();

@@ -27,6 +27,8 @@ export type ReservacionInitial = {
   servicio: string;
   fecha_inicio: string;
   fecha_fin: string;
+  hora_check_in: string;
+  hora_check_out: string;
   precio_acordado: string;
   anticipo_acordado: string;
   estado: string;
@@ -55,6 +57,8 @@ export function ReservacionForm(props: Props) {
   const [servicio, setServicio] = useState<string>(init?.servicio ?? "HOTEL");
   const [fechaInicio, setFechaInicio] = useState(init?.fecha_inicio ?? hoyISO());
   const [fechaFin, setFechaFin] = useState(init?.fecha_fin || hoyISO());
+  const [horaCheckIn, setHoraCheckIn] = useState(init?.hora_check_in ?? "");
+  const [horaCheckOut, setHoraCheckOut] = useState(init?.hora_check_out ?? "");
   const [precio, setPrecio] = useState(init?.precio_acordado ?? "");
   const [anticipo, setAnticipo] = useState(init?.anticipo_acordado ?? "");
   const [estado, setEstado] = useState<string>(init?.estado ?? "RESERVADA");
@@ -123,6 +127,8 @@ export function ReservacionForm(props: Props) {
       servicio,
       fecha_inicio: fechaInicio,
       fecha_fin: esHotel ? fechaFin : null,
+      hora_check_in: horaCheckIn,
+      hora_check_out: horaCheckOut,
       precio_acordado: precioEfectivo === "" ? "0" : precioEfectivo,
       anticipo_acordado: anticipo,
       estado,
@@ -193,6 +199,29 @@ export function ReservacionForm(props: Props) {
         )}
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="resv-hora-in">{esHotel ? "Hora de entrada" : "Hora de llegada"}</Label>
+          <Input
+            id="resv-hora-in"
+            type="time"
+            className="bg-white"
+            value={horaCheckIn}
+            onChange={(e) => setHoraCheckIn(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="resv-hora-out">Hora de salida</Label>
+          <Input
+            id="resv-hora-out"
+            type="time"
+            className="bg-white"
+            value={horaCheckOut}
+            onChange={(e) => setHoraCheckOut(e.target.value)}
+          />
+        </div>
+      </div>
+
       {conflictos.length > 0 && (
         <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <TriangleAlert className="size-5 shrink-0 text-amber-600" aria-hidden />
@@ -260,6 +289,12 @@ export function ReservacionForm(props: Props) {
           />
         </div>
       </div>
+
+      {props.mode === "crear" && Number(anticipo) > 0 && (
+        <p className="-mt-2 text-xs text-neutral-muted">
+          Se registrará como un pago de anticipo y se restará del saldo.
+        </p>
+      )}
 
       {servicio !== "GUARDERIA" &&
         (sugerido ? (

@@ -5,6 +5,7 @@ import { cn, focusRing } from "@/lib/utils";
 import { hoyISO } from "@/lib/date";
 import type { Servicio, ReservacionEstado } from "@/lib/labels";
 import type { ResvLite } from "@/lib/ocupacion";
+import { sumarPagos } from "@/lib/reservacion";
 import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export default async function ReservacionesPage() {
     supabase
       .from("reservaciones")
       .select(
-        "id, perro_id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, perro:perros(nombre)",
+        "id, perro_id, servicio, fecha_inicio, fecha_fin, hora_check_in, hora_check_out, estado, precio_acordado, perro:perros(nombre), pagos(monto)",
       )
       // Incluye FINALIZADA (históricas migradas del Excel); excluye CANCELADA.
       .in("estado", ["RESERVADA", "EN_CURSO", "FINALIZADA"])
@@ -39,6 +40,9 @@ export default async function ReservacionesPage() {
     fecha_fin: r.fecha_fin,
     estado: r.estado as ReservacionEstado,
     precioAcordado: r.precio_acordado ?? 0,
+    pagado: sumarPagos(r.pagos),
+    horaCheckIn: r.hora_check_in,
+    horaCheckOut: r.hora_check_out,
   }));
 
   return (
