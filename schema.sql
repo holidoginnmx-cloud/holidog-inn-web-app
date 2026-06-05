@@ -77,9 +77,15 @@ create table perros (
   alergias          text,
   comportamiento    text,
   notas             text,
+  -- Domicilio para recoger/dejar la mascota (opcional; solo si el cliente lo pide)
+  domicilio         text,
   -- Cartilla de vacunación (no trackeamos vacunas individuales, solo cartilla)
   cartilla_vigente  boolean not null default false,
   cartilla_vence    date,
+  cartilla_foto_url text,
+  -- Desparasitación (igual que la cartilla: solo estado vigente + vencimiento)
+  desparasitacion_vigente boolean not null default false,
+  desparasitacion_vence   date,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
@@ -101,6 +107,9 @@ create table reservaciones (
   servicio            servicio_tipo not null,
   fecha_inicio        date not null,
   fecha_fin           date,
+  -- Hora de check-in / check-out (opcional, ajustable durante la estancia).
+  hora_check_in       time,
+  hora_check_out      time,
   precio_acordado     numeric(10,2) not null default 0,
   anticipo_acordado   numeric(10,2) default 0,
   estado              reservacion_estado not null default 'RESERVADA',

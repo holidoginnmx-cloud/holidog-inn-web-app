@@ -88,8 +88,12 @@ export type Database = {
           veterinario: string | null;
           esterilizado: boolean | null;
           notas: string | null;
+          domicilio: string | null;
           cartilla_vigente: boolean;
           cartilla_vence: string | null;
+          cartilla_foto_url: string | null;
+          desparasitacion_vigente: boolean;
+          desparasitacion_vence: string | null;
           origen_legacy: boolean;
           created_at: string;
           updated_at: string;
@@ -109,8 +113,12 @@ export type Database = {
           veterinario?: string | null;
           esterilizado?: boolean | null;
           notas?: string | null;
+          domicilio?: string | null;
           cartilla_vigente?: boolean;
           cartilla_vence?: string | null;
+          cartilla_foto_url?: string | null;
+          desparasitacion_vigente?: boolean;
+          desparasitacion_vence?: string | null;
           origen_legacy?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -130,8 +138,12 @@ export type Database = {
           veterinario?: string | null;
           esterilizado?: boolean | null;
           notas?: string | null;
+          domicilio?: string | null;
           cartilla_vigente?: boolean;
           cartilla_vence?: string | null;
+          cartilla_foto_url?: string | null;
+          desparasitacion_vigente?: boolean;
+          desparasitacion_vence?: string | null;
           origen_legacy?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -153,6 +165,8 @@ export type Database = {
           servicio: Database["public"]["Enums"]["servicio_tipo"];
           fecha_inicio: string;
           fecha_fin: string | null;
+          hora_check_in: string | null;
+          hora_check_out: string | null;
           precio_acordado: number;
           anticipo_acordado: number | null;
           estado: Database["public"]["Enums"]["reservacion_estado"];
@@ -167,6 +181,8 @@ export type Database = {
           servicio: Database["public"]["Enums"]["servicio_tipo"];
           fecha_inicio: string;
           fecha_fin?: string | null;
+          hora_check_in?: string | null;
+          hora_check_out?: string | null;
           precio_acordado?: number;
           anticipo_acordado?: number | null;
           estado?: Database["public"]["Enums"]["reservacion_estado"];
@@ -181,6 +197,8 @@ export type Database = {
           servicio?: Database["public"]["Enums"]["servicio_tipo"];
           fecha_inicio?: string;
           fecha_fin?: string | null;
+          hora_check_in?: string | null;
+          hora_check_out?: string | null;
           precio_acordado?: number;
           anticipo_acordado?: number | null;
           estado?: Database["public"]["Enums"]["reservacion_estado"];
