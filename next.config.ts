@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
+      // Fotos heredadas de la app móvil beta (se subieron a Cloudinary).
+      // Conviven con las del bucket de Supabase hasta que se migren/decommissionen.
+      {
+        protocol: "https" as const,
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
       // Si NEXT_PUBLIC_SUPABASE_URL existe, restringe al host concreto.
       ...(supabaseHostname
         ? [
