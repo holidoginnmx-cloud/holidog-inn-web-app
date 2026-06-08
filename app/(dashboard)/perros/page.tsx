@@ -3,6 +3,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cn, focusRing } from "@/lib/utils";
 import { MARCA_REVISAR_PERRO } from "@/lib/perro";
+import { typeToServicio, type Servicio, type ReservationType } from "@/lib/labels";
 import { PerroList } from "@/components/domain/PerroList";
 import type { PerroListItem } from "@/components/domain/PerroCard";
 
@@ -17,9 +18,11 @@ export default async function PerrosPage() {
   try {
     const supabase = createSupabaseServerClient();
     const { data, error } = await supabase
-      .from("perros")
-      .select("id, nombre, talla, foto_url, notas, cliente:clientes(nombre)")
-      .order("nombre", { ascending: true });
+      .from("pets")
+      .select(
+        "id, nombre:name, talla:size, foto_url:photoUrl, notas:notes, cliente:users!pets_ownerId_fkey(nombre:firstName), reservaciones:reservations(servicio:reservationType)",
+      )
+      .order("name", { ascending: true });
     if (error) throw error;
 
     for (const p of data ?? []) {
@@ -31,7 +34,15 @@ export default async function PerrosPage() {
       // El embed puede tiparse como objeto o arreglo según la inferencia; normalizamos.
       const c = p.cliente as { nombre: string } | { nombre: string }[] | null;
       const cliente = Array.isArray(c) ? (c[0] ?? null) : c;
-      perros.push({ id: p.id, nombre: p.nombre, talla: p.talla, foto_url: p.foto_url, cliente });
+      // Servicios distintos del historial: un perro aparece en cada filtro de
+      // servicio donde tenga al menos una reservación. El tipo de reservación
+      // viene en inglés (ReservationType) y se traduce al Servicio del UI.
+      const reservas =
+        (p.reservaciones as { servicio: ReservationType }[] | null) ?? [];
+      const servicios: Servicio[] = [
+        ...new Set(reservas.map((r) => typeToServicio(r.servicio))),
+      ];
+      perros.push({ id: p.id, nombre: p.nombre, talla: p.talla, foto_url: p.foto_url, cliente, servicios });
     }
   } catch (e) {
     console.error("[perros] Error al cargar lista:", e);

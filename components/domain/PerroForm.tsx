@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ClienteForm } from "./ClienteForm";
 import { TallaBadge } from "./TallaBadge";
-import { calcularTalla, TALLA_RANGO, TALLA_LABEL, type Talla } from "@/lib/perro";
+import { calcularSize, SIZE_RANGO, type PetSize } from "@/lib/perro";
+import { TALLA_LABEL } from "@/lib/labels";
 import { comprimirImagen } from "@/lib/image";
 import { crearClienteYPerro, actualizarClienteYPerro } from "@/app/(dashboard)/perros/actions";
 
@@ -22,7 +23,7 @@ export type PerroFormValues = {
     nombre: string;
     raza: string;
     sexo: "" | "MACHO" | "HEMBRA";
-    talla: "" | Talla;
+    talla: "" | PetSize;
     fecha_nacimiento: string;
     peso_kg: string;
     alergias: string;
@@ -98,8 +99,11 @@ export function PerroForm(props: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // useWatch (en vez de methods.watch) es compatible con React Compiler.
+  // Si hay peso, la talla (PetSize) se calcula del peso; si no, se elige a mano.
   const pesoStr = useWatch({ control, name: "perro.peso_kg" });
-  const talla: Talla | null = calcularTalla(pesoStr ? Number(pesoStr) : null);
+  const pesoNum = pesoStr ? Number(pesoStr) : null;
+  const talla: PetSize | null =
+    pesoNum != null && !Number.isNaN(pesoNum) && pesoNum > 0 ? calcularSize(pesoNum) : null;
 
   function onPickFoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -125,6 +129,10 @@ export function PerroForm(props: Props) {
     setErrorMsg(null);
     setPending(true);
     try {
+      // NOTA migración: estos campos del form SIN equivalente en el esquema
+      // unificado se siguen enviando pero la Server Action los IGNORA al
+      // escribir: cliente.notas, perro.domicilio, perro.cartilla_vence,
+      // perro.desparasitacion_vigente, perro.desparasitacion_vence.
       const fd = new FormData();
       fd.set("cliente.nombre", values.cliente.nombre);
       fd.set("cliente.telefono", values.cliente.telefono);
@@ -263,24 +271,23 @@ export function PerroForm(props: Props) {
             </div>
           </div>
 
-          {/* Talla: si hay peso, la calcula la BD (peso manda). Si no, se elige a mano. */}
+          {/* Talla: si hay peso, se calcula del peso (peso manda). Si no, se elige a mano. */}
           {talla ? (
             <div className="flex items-center gap-2 rounded-md bg-neutral-sand/50 px-3 py-2 text-sm">
               <span className="text-neutral-muted">Talla (calculada del peso):</span>
               <TallaBadge talla={talla} />
-              <span className="text-neutral-muted">{TALLA_RANGO[talla]}</span>
+              <span className="text-neutral-muted">{SIZE_RANGO[talla]}</span>
             </div>
           ) : (
             <div className="space-y-1.5">
               <Label htmlFor="perro-talla">Talla</Label>
               <select id="perro-talla" className={inputSelectClass} {...register("perro.talla")}>
                 <option value="">—</option>
-                <option value="EXTRA_CHICO">
-                  {TALLA_LABEL.EXTRA_CHICO} ({TALLA_RANGO.EXTRA_CHICO})
-                </option>
-                <option value="CHICO">{TALLA_LABEL.CHICO} ({TALLA_RANGO.CHICO})</option>
-                <option value="MEDIANO">{TALLA_LABEL.MEDIANO} ({TALLA_RANGO.MEDIANO})</option>
-                <option value="GRANDE">{TALLA_LABEL.GRANDE} ({TALLA_RANGO.GRANDE})</option>
+                <option value="XS">{TALLA_LABEL.XS} ({SIZE_RANGO.XS})</option>
+                <option value="S">{TALLA_LABEL.S} ({SIZE_RANGO.S})</option>
+                <option value="M">{TALLA_LABEL.M} ({SIZE_RANGO.M})</option>
+                <option value="L">{TALLA_LABEL.L} ({SIZE_RANGO.L})</option>
+                <option value="XL">{TALLA_LABEL.XL} ({SIZE_RANGO.XL})</option>
               </select>
               <p className="text-neutral-muted text-xs">
                 Si capturas el peso, la talla se calcula sola.

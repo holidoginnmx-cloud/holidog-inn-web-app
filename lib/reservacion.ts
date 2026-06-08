@@ -30,3 +30,39 @@ export function estadoPago(precioAcordado: number, pagado: number): EstadoPago {
 export function sumarPagos(pagos: { monto: number | null }[] | null | undefined): number {
   return (pagos ?? []).reduce((acc, p) => acc + (p.monto ?? 0), 0);
 }
+
+// ============================================================================
+//  Conversión fecha "YYYY-MM-DD" <-> timestamp de reservations
+// ============================================================================
+// En el esquema unificado checkIn/checkOut/appointmentAt son TIMESTAMP. El UI y
+// el calendario siguen razonando en fechas "YYYY-MM-DD". Para no correr el día
+// por zona horaria, los timestamps se anclan a mediodía UTC al escribir y se lee
+// la parte de fecha en UTC.
+
+/** "YYYY-MM-DD" → timestamp ISO anclado a mediodía UTC. null si no hay fecha. */
+export function timestampDeFecha(fecha: string | null | undefined): string | null {
+  if (!fecha) return null;
+  // Acepta tanto "YYYY-MM-DD" como un ISO ya completo (toma solo la fecha).
+  const soloFecha = fecha.slice(0, 10);
+  return `${soloFecha}T12:00:00.000Z`;
+}
+
+/** timestamp ISO → "YYYY-MM-DD" (parte de fecha en UTC). null si no hay valor. */
+export function fechaDeTimestamp(ts: string | null | undefined): string | null {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * timestamp ISO → hora "HH:MM" (UTC). null si no hay valor o si la hora es el
+ * "mediodía centinela" (12:00) que usamos cuando no se capturó una hora real.
+ */
+export function horaDeTimestamp(ts: string | null | undefined): string | null {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  const hhmm = d.toISOString().slice(11, 16);
+  return hhmm === "12:00" ? null : hhmm;
+}

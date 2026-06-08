@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { TallaBadge } from "@/components/domain/TallaBadge";
 import { PagoBadge } from "@/components/domain/PagoBadge";
 import { sumarPagos } from "@/lib/reservacion";
-import { SEXO_LABEL, inicial, type Talla, type Sexo } from "@/lib/perro";
-import { formatFecha, calcularEdad, estadoCartilla } from "@/lib/date";
+import { SEXO_LABEL, inicial, sexToSexo, type PetSize, type Sexo } from "@/lib/perro";
+import { typeToServicio, statusToEstado, type ReservationType, type ReservationStatus } from "@/lib/labels";
+import { formatFecha, calcularEdad } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
 import { EliminarPerroButton } from "@/components/domain/EliminarPerroButton";
 
@@ -40,8 +41,10 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
   const supabase = createSupabaseServerClient();
 
   const { data: perro, error } = await supabase
-    .from("perros")
-    .select("*, cliente:clientes(*)")
+    .from("pets")
+    .select(
+      "id, nombre:name, raza:breed, sexo:sex, talla:size, fecha_nacimiento:birthDate, peso_kg:weight, veterinario:vetName, esterilizado:isNeutered, alergias:healthIssues, comportamiento:behavior, notas:notes, foto_url:photoUrl, cartilla_foto_url:cartillaUrl, cartillaStatus, cliente:users!pets_ownerId_fkey(nombre:firstName, telefono:phone)",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -52,19 +55,31 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
 
   const c = perro.cliente as { nombre: string; telefono: string | null } | null;
 
-  const { data: reservaciones } = await supabase
-    .from("reservaciones")
-    .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, pagos(monto)")
-    .eq("perro_id", id)
-    .order("fecha_inicio", { ascending: false })
+  const { data: reservacionesRaw } = await supabase
+    .from("reservations")
+    .select(
+      "id, servicio:reservationType, fecha_inicio:checkIn, fecha_fin:checkOut, estado:status, precio_acordado:totalAmount, pagos:payments(monto:amount)",
+    )
+    .eq("petId", id)
+    .order("checkIn", { ascending: false })
     .limit(5);
 
+  // Traducimos servicio/estado de los enums en inglés al español del UI.
+  const reservaciones = (reservacionesRaw ?? []).map((r) => ({
+    id: r.id,
+    servicio: typeToServicio(r.servicio as ReservationType),
+    fecha_inicio: r.fecha_inicio,
+    fecha_fin: r.fecha_fin,
+    estado: statusToEstado(r.estado as ReservationStatus),
+    precio_acordado: r.precio_acordado,
+    pagos: r.pagos,
+  }));
+
+  // cartilla_vigente derivado de cartillaStatus. Ya no hay fecha de vencimiento
+  // (sin equivalente), así que el estado es binario. Desparasitación NO tiene
+  // equivalente en pets (se omite la sección).
   const edad = calcularEdad(perro.fecha_nacimiento);
-  const cartilla = estadoCartilla(perro.cartilla_vigente, perro.cartilla_vence);
-  const desparasitacion = estadoCartilla(
-    perro.desparasitacion_vigente,
-    perro.desparasitacion_vence,
-  );
+  const cartilla = perro.cartillaStatus === "APPROVED" ? "vigente" : "vencida";
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
@@ -107,14 +122,18 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
         <h1 className="mt-3 text-2xl font-semibold text-neutral-ink">{perro.nombre}</h1>
         <p className="text-sm text-neutral-muted">{c?.nombre ?? "Sin cliente"}</p>
         <div className="mt-2">
-          <TallaBadge talla={perro.talla as Talla | null} />
+          <TallaBadge talla={perro.talla as PetSize | null} />
         </div>
       </div>
 
-      {/* Datos básicos */}
+      {/* Datos básicos. `sexo` viene como "M"/"F"; se traduce a MACHO/HEMBRA.
+          "Domicilio" se omite: no tiene columna equivalente en pets. */}
       <dl className="grid grid-cols-2 gap-4 rounded-xl border border-neutral-border bg-white p-4">
         <Dato label="Raza" value={perro.raza} />
-        <Dato label="Sexo" value={perro.sexo ? SEXO_LABEL[perro.sexo as Sexo] : null} />
+        <Dato
+          label="Sexo"
+          value={sexToSexo(perro.sexo) ? SEXO_LABEL[sexToSexo(perro.sexo) as Sexo] : null}
+        />
         <Dato label="Edad" value={edad} />
         <Dato label="Peso" value={perro.peso_kg != null ? `${perro.peso_kg} kg` : null} />
         <Dato label="Veterinario" value={perro.veterinario} />
@@ -124,9 +143,6 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
         />
         <Dato label="Teléfono del dueño" value={c?.telefono} />
         <Dato label="Nacimiento" value={formatFecha(perro.fecha_nacimiento)} />
-        <div className="col-span-2">
-          <Dato label="Domicilio" value={perro.domicilio} />
-        </div>
       </dl>
 
       {/* Alergias / comportamiento */}
@@ -153,63 +169,23 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* Cartilla */}
+      {/* Cartilla (estado binario; sin fecha de vencimiento en el esquema nuevo) */}
       <div
         className={`flex items-center gap-3 rounded-xl border p-4 ${
           cartilla === "vigente"
             ? "border-emerald-200 bg-emerald-50"
-            : cartilla === "por_vencer"
-              ? "border-amber-200 bg-amber-50"
-              : "border-rose-200 bg-rose-50"
+            : "border-rose-200 bg-rose-50"
         }`}
       >
-        {cartilla === "vencida" ? (
-          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
-        ) : (
+        {cartilla === "vigente" ? (
           <ShieldCheck className="size-5 text-emerald-600" aria-hidden />
+        ) : (
+          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
         )}
         <div className="text-sm">
           <p className="font-medium text-neutral-ink">
-            {cartilla === "vencida"
-              ? "Cartilla no vigente"
-              : cartilla === "por_vencer"
-                ? "Cartilla por vencer"
-                : "Cartilla vigente"}
+            {cartilla === "vigente" ? "Cartilla vigente" : "Cartilla no vigente"}
           </p>
-          {perro.cartilla_vence && (
-            <p className="text-neutral-muted">Vence el {formatFecha(perro.cartilla_vence)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Desparasitación */}
-      <div
-        className={`flex items-center gap-3 rounded-xl border p-4 ${
-          desparasitacion === "vigente"
-            ? "border-emerald-200 bg-emerald-50"
-            : desparasitacion === "por_vencer"
-              ? "border-amber-200 bg-amber-50"
-              : "border-rose-200 bg-rose-50"
-        }`}
-      >
-        {desparasitacion === "vencida" ? (
-          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
-        ) : (
-          <ShieldCheck className="size-5 text-emerald-600" aria-hidden />
-        )}
-        <div className="text-sm">
-          <p className="font-medium text-neutral-ink">
-            {desparasitacion === "vencida"
-              ? "Desparasitación no vigente"
-              : desparasitacion === "por_vencer"
-                ? "Desparasitación por vencer"
-                : "Desparasitación vigente"}
-          </p>
-          {perro.desparasitacion_vence && (
-            <p className="text-neutral-muted">
-              Vence el {formatFecha(perro.desparasitacion_vence)}
-            </p>
-          )}
         </div>
       </div>
 

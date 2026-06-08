@@ -10,9 +10,11 @@ import {
 import { ocupantes, type ResvLite } from "@/lib/ocupacion";
 import {
   TIPO_COSTO_OPTIONS,
-  type Servicio,
+  typeToServicio,
+  statusToEstado,
   type TipoCosto,
-  type ReservacionEstado,
+  type ReservationType,
+  type ReservationStatus,
 } from "@/lib/labels";
 import { MesSelector } from "@/components/domain/dashboard/MesSelector";
 import { AccionesRapidas } from "@/components/domain/dashboard/AccionesRapidas";
@@ -79,25 +81,37 @@ export default async function DashboardPage({
         .eq("mes_num", mes)
         .order("total", { ascending: false })
         .limit(10),
-      supabase.from("config").select("cupo_maximo").eq("id", 1).maybeSingle(),
       supabase
-        .from("reservaciones")
-        .select("id, perro_id, servicio, fecha_inicio, fecha_fin, estado")
-        .eq("servicio", "HOTEL")
-        .in("estado", ["RESERVADA", "EN_CURSO"]),
+        .from("hotel_config")
+        .select("cupo_maximo:maxCapacity")
+        .eq("id", "singleton")
+        .maybeSingle(),
+      supabase
+        .from("reservations")
+        .select(
+          "id, petId, reservationType, fecha_inicio:checkIn, fecha_fin:checkOut, status",
+        )
+        .in("reservationType", ["STAY", "DAYCARE"])
+        .in("status", ["CONFIRMED", "CHECKED_IN"]),
     ]);
 
   // Ocupación de hoy (solo HOTEL). Reutiliza la lógica de disponibilidad.
   const cupo = cfgRes.data?.cupo_maximo ?? 20;
-  const resvHotel: ResvLite[] = (resvHotelRes.data ?? []).map((r) => ({
-    id: r.id,
-    perroId: r.perro_id,
-    perroNombre: null,
-    servicio: r.servicio as Servicio,
-    fecha_inicio: r.fecha_inicio,
-    fecha_fin: r.fecha_fin,
-    estado: r.estado as ReservacionEstado,
-  }));
+  // `checkIn`/`checkOut` son timestamps; los recortamos a "YYYY-MM-DD" porque
+  // `ocupantes()` compara fechas lexicográficamente. La ocupación de hotel solo
+  // cuenta servicios STAY (que mapean a HOTEL); DAYCARE se trae pero `ocupantes`
+  // lo descarta al filtrar por servicio === "HOTEL".
+  const resvHotel: ResvLite[] = (resvHotelRes.data ?? [])
+    .filter((r) => r.fecha_inicio != null)
+    .map((r) => ({
+      id: r.id,
+      perroId: r.petId,
+      perroNombre: null,
+      servicio: typeToServicio(r.reservationType as ReservationType),
+      fecha_inicio: r.fecha_inicio!.slice(0, 10),
+      fecha_fin: r.fecha_fin ? r.fecha_fin.slice(0, 10) : null,
+      estado: statusToEstado(r.status as ReservationStatus),
+    }));
   const hospedadosHoy = ocupantes(resvHotel, todayISO).length;
 
   // Totales mensuales (vistas pequeñas: las traemos completas y mapeamos).

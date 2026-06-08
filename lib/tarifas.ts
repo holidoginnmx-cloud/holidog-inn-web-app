@@ -1,40 +1,45 @@
-import type { Servicio } from "@/lib/labels";
+import type { Servicio, PetSize } from "@/lib/labels";
 import { TALLA_LABEL, type Talla } from "@/lib/perro";
 import { nochesEntre } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
 
-// Precios del catálogo, indexados por código. La fuente de verdad es la tabla
-// `tarifas` en Supabase (editable en /config). Los RANGOS de peso, en cambio,
-// viven aquí: las tallas del catálogo no coinciden con `perros.talla`.
-export type Tarifas = Record<string, number>;
-
-// Hotel: dos rangos por peso. ProBarf incluye alimento y abarata el precio.
-function hotelTierPorPeso(pesoKg: number): "NORMAL" | "XL" {
-  return pesoKg < 20 ? "NORMAL" : "XL";
-}
-
-// Hotel a partir de la talla (cuando no hay peso). El hotel parte en 20 kg; solo
-// "Grande" (25+ kg) cae con seguridad en XL. Mediano (16–25) se cobra Normal.
-function hotelTierPorTalla(talla: Talla): "NORMAL" | "XL" {
-  return talla === "GRANDE" ? "XL" : "NORMAL";
-}
-
-// Estética (baño): cuatro rangos confirmados por el dueño.
-//   1–5 → extra chico · 6–15 → chico · 16–25 → mediano · 25+ → grande
-function esteticaCodigoPorPeso(pesoKg: number): string {
-  if (pesoKg < 6) return "ESTETICA_XCHICO";
-  if (pesoKg < 16) return "ESTETICA_CHICO";
-  if (pesoKg <= 25) return "ESTETICA_MEDIANO";
-  return "ESTETICA_GRANDE";
-}
-
-// La talla ya coincide 1:1 con las categorías de estética.
-const ESTETICA_POR_TALLA: Record<Talla, string> = {
-  EXTRA_CHICO: "ESTETICA_XCHICO",
-  CHICO: "ESTETICA_CHICO",
-  MEDIANO: "ESTETICA_MEDIANO",
-  GRANDE: "ESTETICA_GRANDE",
+// Catálogo de precios para sugerir `precio_acordado`. La fuente de verdad son
+// las tablas unificadas `lodging_pricing` (singleton: hotel + guardería, por
+// peso) y `service_variants` (estética: una fila por talla/corte/deslanado).
+// data.ts arma este objeto a partir de esas tablas.
+export type Tarifas = {
+  // Hotel: precio por noche según el peso (umbral `largeWeightKg`).
+  pricePerDaySmall: number;
+  pricePerDayLarge: number;
+  priceProbarfSmall: number;
+  priceProbarfLarge: number;
+  // Guardería: precio por día (no se sugiere, pero se conserva por completitud).
+  daycarePricePerDay: number;
+  // Umbral de peso (kg) a partir del cual el hotel cobra tarifa "Large".
+  largeWeightKg: number;
+  // Estética: precio base de baño por talla (PetSize). Se toma la variante más
+  // barata por talla (típicamente sin corte ni deslanado) como sugerencia base.
+  esteticaPorTalla: Partial<Record<PetSize, number>>;
 };
+
+// Talla legacy (del badge del perro) -> PetSize del esquema unificado.
+// El hotel parte en `largeWeightKg`; sin peso usamos el badge: solo "Grande"
+// cae con seguridad en la tarifa Large.
+const TALLA_TO_PETSIZE: Record<Talla, PetSize> = {
+  EXTRA_CHICO: "XS",
+  CHICO: "S",
+  MEDIANO: "M",
+  GRANDE: "L",
+};
+
+// Hotel: ¿el perro cae en la tarifa "Large"? Por peso usa el umbral configurable;
+// sin peso, solo "Grande" se considera Large.
+function esLargePorPeso(pesoKg: number, largeWeightKg: number): boolean {
+  return pesoKg >= largeWeightKg;
+}
+function esLargePorTalla(talla: Talla): boolean {
+  return talla === "GRANDE";
+}
 
 export type PrecioSugerido = { monto: number; detalle: string };
 
@@ -61,16 +66,25 @@ export function calcularPrecioSugerido(args: {
   const nota = porTalla ? " · según talla" : "";
 
   if (servicio === "ESTETICA") {
-    const codigo = tienePeso ? esteticaCodigoPorPeso(pesoKg!) : ESTETICA_POR_TALLA[talla!];
-    const base = tarifas[codigo];
+    // La estética se cobra por talla (PetSize). Sin peso usamos el badge.
+    const petSize = tienePeso ? petSizePorPeso(pesoKg!, tarifas) : TALLA_TO_PETSIZE[talla!];
+    const base = tarifas.esteticaPorTalla[petSize];
     if (base == null) return null;
     const etiqueta = tienePeso ? etiquetaTallaEstetica(pesoKg!) : TALLA_LABEL[talla!];
     return { monto: base, detalle: `Estética · ${etiqueta}${nota}` };
   }
 
   // HOTEL: precio por noche × número de noches (mínimo 1).
-  const tier = tienePeso ? hotelTierPorPeso(pesoKg!) : hotelTierPorTalla(talla!);
-  const base = tarifas[probarf ? `HOTEL_PROBARF_${tier}` : `HOTEL_${tier}`];
+  const esLarge = tienePeso
+    ? esLargePorPeso(pesoKg!, tarifas.largeWeightKg)
+    : esLargePorTalla(talla!);
+  const base = probarf
+    ? esLarge
+      ? tarifas.priceProbarfLarge
+      : tarifas.priceProbarfSmall
+    : esLarge
+      ? tarifas.pricePerDayLarge
+      : tarifas.pricePerDaySmall;
   if (base == null) return null;
   const noches = fechaFin ? Math.max(1, nochesEntre(fechaInicio, fechaFin)) : 1;
   const sufijo = probarf ? " ProBarf" : "";
@@ -78,6 +92,16 @@ export function calcularPrecioSugerido(args: {
     monto: base * noches,
     detalle: `${noches} ${noches === 1 ? "noche" : "noches"} × ${formatMoneda(base)}${sufijo}${nota}`,
   };
+}
+
+// PetSize estimado a partir del peso, usando el mismo escalado que la estética.
+// Para el hotel solo importa small/large; aquí lo usamos para elegir variante
+// de baño cuando hay peso pero no badge de talla.
+function petSizePorPeso(pesoKg: number, tarifas: Tarifas): PetSize {
+  if (pesoKg < 6) return "XS";
+  if (pesoKg < 16) return "S";
+  if (pesoKg <= 25) return "M";
+  return pesoKg >= tarifas.largeWeightKg ? "L" : "M";
 }
 
 function etiquetaTallaEstetica(pesoKg: number): string {

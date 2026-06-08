@@ -3,9 +3,10 @@ import { Plus } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cn, focusRing } from "@/lib/utils";
 import { hoyISO } from "@/lib/date";
-import type { Servicio, ReservacionEstado } from "@/lib/labels";
+import { typeToServicio, statusToEstado } from "@/lib/labels";
+import type { Enums } from "@/lib/supabase/types";
 import type { ResvLite } from "@/lib/ocupacion";
-import { sumarPagos } from "@/lib/reservacion";
+import { fechaDeTimestamp, horaDeTimestamp } from "@/lib/reservacion";
 import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
 
 export const dynamic = "force-dynamic";
@@ -15,35 +16,49 @@ function one<T>(x: T | T[] | null | undefined): T | null {
   return Array.isArray(x) ? (x[0] ?? null) : x;
 }
 
+function sumarPagosEn(pagos: { amount: number | null }[] | null | undefined): number {
+  return (pagos ?? []).reduce((acc, p) => acc + (p.amount ?? 0), 0);
+}
+
 export default async function ReservacionesPage() {
   const supabase = createSupabaseServerClient();
 
   const [cfgRes, resvRes] = await Promise.all([
-    supabase.from("config").select("cupo_maximo").eq("id", 1).maybeSingle(),
     supabase
-      .from("reservaciones")
+      .from("hotel_config")
+      .select("cupo_maximo:maxCapacity")
+      .eq("id", "singleton")
+      .maybeSingle(),
+    supabase
+      .from("reservations")
       .select(
-        "id, perro_id, servicio, fecha_inicio, fecha_fin, hora_check_in, hora_check_out, estado, precio_acordado, perro:perros(nombre), pagos(monto)",
+        "id, petId, reservationType, checkIn, checkOut, appointmentAt, status, totalAmount, pet:pets(nombre:name), payments(amount)",
       )
-      // Incluye FINALIZADA (históricas migradas del Excel); excluye CANCELADA.
-      .in("estado", ["RESERVADA", "EN_CURSO", "FINALIZADA"])
-      .order("fecha_inicio", { ascending: true }),
+      // Incluye CHECKED_OUT (históricas migradas del Excel); excluye CANCELLED.
+      .in("status", ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"])
+      .order("checkIn", { ascending: true }),
   ]);
 
   const cupo = cfgRes.data?.cupo_maximo ?? 20;
-  const reservaciones: ResvLite[] = (resvRes.data ?? []).map((r) => ({
-    id: r.id,
-    perroId: r.perro_id,
-    perroNombre: (one(r.perro) as { nombre: string } | null)?.nombre ?? null,
-    servicio: r.servicio as Servicio,
-    fecha_inicio: r.fecha_inicio,
-    fecha_fin: r.fecha_fin,
-    estado: r.estado as ReservacionEstado,
-    precioAcordado: r.precio_acordado ?? 0,
-    pagado: sumarPagos(r.pagos),
-    horaCheckIn: r.hora_check_in,
-    horaCheckOut: r.hora_check_out,
-  }));
+  const reservaciones: ResvLite[] = (resvRes.data ?? []).map((r) => {
+    const tipo = r.reservationType as Enums<"ReservationType">;
+    // STAY: checkIn/checkOut. ESTETICA/GUARDERIA: appointmentAt (de un día).
+    const inicioTs = tipo === "STAY" ? r.checkIn : r.appointmentAt;
+    const finTs = tipo === "STAY" ? r.checkOut : null;
+    return {
+      id: r.id,
+      perroId: r.petId,
+      perroNombre: (one(r.pet) as { nombre: string } | null)?.nombre ?? null,
+      servicio: typeToServicio(tipo),
+      fecha_inicio: fechaDeTimestamp(inicioTs) ?? "",
+      fecha_fin: fechaDeTimestamp(finTs),
+      estado: statusToEstado(r.status as Enums<"ReservationStatus">),
+      precioAcordado: r.totalAmount ?? 0,
+      pagado: sumarPagosEn(r.payments),
+      horaCheckIn: horaDeTimestamp(r.checkIn),
+      horaCheckOut: horaDeTimestamp(r.checkOut),
+    };
+  });
 
   return (
     <div className="space-y-4">

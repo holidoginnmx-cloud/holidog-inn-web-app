@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { type ActionResult, ERROR_GENERICO, validar, withSupabase } from "@/lib/actions";
 import { pagoInputSchema, pagoUpdateSchema } from "@/lib/validations/pago";
 import { egresoInputSchema } from "@/lib/validations/egreso";
-import type { Servicio, ReservacionEstado } from "@/lib/labels";
+import {
+  type Servicio,
+  type ReservacionEstado,
+  servicioToType,
+  typeToServicio,
+  statusToEstado,
+} from "@/lib/labels";
 import { sumarPagos } from "@/lib/reservacion";
 
 export type ReservacionAbierta = {
@@ -23,21 +29,37 @@ export type ReservacionAbierta = {
 export async function crearPago(input: unknown): Promise<ActionResult<{ pagoId: string }>> {
   const v = validar(pagoInputSchema, input);
   if (!v.ok) return v;
-  const { perro_id, reservacion_id, servicio, monto, tipo, fecha, notas } = v.data;
+  const { perro_id, reservacion_id, servicio, monto, tipo, metodo_pago, fecha, notas } = v.data;
 
   return withSupabase("movimientos", async (supabase) => {
     let reservacionId = reservacion_id;
 
     if (reservacion_id === "nueva") {
       // El precio acordado arranca igual al monto; el dueño lo ajusta después.
+      // Reservaciones en la tabla unificada `reservations` (requiere ownerId del perro).
+      const { data: pet } = await supabase
+        .from("pets")
+        .select("ownerId")
+        .eq("id", perro_id)
+        .maybeSingle();
+      if (!pet) {
+        console.error("[movimientos] perro no encontrado para nueva reservación:", perro_id);
+        return { ok: false, error: ERROR_GENERICO };
+      }
+      const type = servicioToType(servicio as Servicio);
+      const fechaTs = new Date(`${fecha}T12:00:00Z`).toISOString();
       const { data: resv, error: resvErr } = await supabase
-        .from("reservaciones")
+        .from("reservations")
         .insert({
-          perro_id,
-          servicio: servicio as Servicio,
-          fecha_inicio: fecha,
-          precio_acordado: monto,
-          estado: "RESERVADA",
+          id: crypto.randomUUID(),
+          petId: perro_id,
+          ownerId: pet.ownerId,
+          reservationType: type,
+          status: "CONFIRMED",
+          totalAmount: monto,
+          checkIn: type === "STAY" ? fechaTs : null,
+          appointmentAt: type === "STAY" ? null : fechaTs,
+          updatedAt: new Date().toISOString(),
         })
         .select("id")
         .single();
@@ -48,9 +70,27 @@ export async function crearPago(input: unknown): Promise<ActionResult<{ pagoId: 
       reservacionId = resv.id;
     }
 
+    // El admin registra pagos ya recibidos: status PAID. userId = dueño de la
+    // reserva (o null si no se encuentra en `reservations`).
+    const { data: resvOwner } = await supabase
+      .from("reservations")
+      .select("ownerId")
+      .eq("id", reservacionId)
+      .maybeSingle();
+
     const { data: pago, error: pagoErr } = await supabase
-      .from("pagos")
-      .insert({ reservacion_id: reservacionId, monto, tipo, fecha, descripcion: notas })
+      .from("payments")
+      .insert({
+        id: crypto.randomUUID(),
+        reservationId: reservacionId,
+        amount: monto,
+        kind: tipo,
+        method: metodo_pago,
+        status: "PAID",
+        userId: resvOwner?.ownerId ?? null,
+        paidAt: fecha,
+        notes: notas,
+      })
       .select("id")
       .single();
     if (pagoErr || !pago) {
@@ -71,10 +111,20 @@ export async function crearEgreso(input: unknown): Promise<ActionResult<{ egreso
   const v = validar(egresoInputSchema, input);
   if (!v.ok) return v;
 
+  const { descripcion, monto, categoria, tipo_costo, fecha, notas } = v.data;
+
   return withSupabase("movimientos", async (supabase) => {
     const { data: egreso, error } = await supabase
-      .from("egresos")
-      .insert(v.data)
+      .from("expenses")
+      .insert({
+        id: crypto.randomUUID(),
+        amount: monto,
+        category: categoria,
+        costType: tipo_costo,
+        description: descripcion,
+        date: fecha,
+        notes: notas,
+      })
       .select("id")
       .single();
     if (error || !egreso) {
@@ -96,12 +146,12 @@ export async function actualizarPago(
 ): Promise<ActionResult<{ pagoId: string }>> {
   const v = validar(pagoUpdateSchema, input);
   if (!v.ok) return v;
-  const { monto, tipo, fecha, notas } = v.data;
+  const { monto, tipo, metodo_pago, fecha, notas } = v.data;
 
   return withSupabase("movimientos", async (supabase) => {
     const { error } = await supabase
-      .from("pagos")
-      .update({ monto, tipo, fecha, descripcion: notas })
+      .from("payments")
+      .update({ amount: monto, kind: tipo, method: metodo_pago, paidAt: fecha, notes: notas })
       .eq("id", id);
     if (error) {
       console.error("[movimientos] Error al actualizar pago:", error);
@@ -120,9 +170,20 @@ export async function actualizarEgreso(
 ): Promise<ActionResult<{ egresoId: string }>> {
   const v = validar(egresoInputSchema, input);
   if (!v.ok) return v;
+  const { descripcion, monto, categoria, tipo_costo, fecha, notas } = v.data;
 
   return withSupabase("movimientos", async (supabase) => {
-    const { error } = await supabase.from("egresos").update(v.data).eq("id", id);
+    const { error } = await supabase
+      .from("expenses")
+      .update({
+        amount: monto,
+        category: categoria,
+        costType: tipo_costo,
+        description: descripcion,
+        date: fecha,
+        notes: notas,
+      })
+      .eq("id", id);
     if (error) {
       console.error("[movimientos] Error al actualizar egreso:", error);
       return { ok: false, error: ERROR_GENERICO };
@@ -145,11 +206,13 @@ export async function getReservacionesDelPerro(
 ): Promise<ActionResult<ReservacionAbierta[]>> {
   return withSupabase("movimientos", async (supabase) => {
     const { data, error } = await supabase
-      .from("reservaciones")
-      .select("id, servicio, fecha_inicio, fecha_fin, estado, precio_acordado, pagos(monto)")
-      .eq("perro_id", perroId)
-      .neq("estado", "CANCELADA")
-      .order("fecha_inicio", { ascending: false });
+      .from("reservations")
+      .select(
+        "id, reservationType, checkIn, checkOut, appointmentAt, status, totalAmount, payments(monto:amount)",
+      )
+      .eq("petId", perroId)
+      .neq("status", "CANCELLED")
+      .order("checkIn", { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error("[movimientos] Error al cargar reservaciones:", error);
@@ -157,12 +220,12 @@ export async function getReservacionesDelPerro(
     }
     const reservaciones: ReservacionAbierta[] = (data ?? []).map((r) => ({
       id: r.id,
-      servicio: r.servicio,
-      fecha_inicio: r.fecha_inicio,
-      fecha_fin: r.fecha_fin,
-      estado: r.estado,
-      precio_acordado: r.precio_acordado,
-      pagado: sumarPagos(r.pagos),
+      servicio: typeToServicio(r.reservationType),
+      fecha_inicio: (r.checkIn ?? r.appointmentAt ?? "").slice(0, 10),
+      fecha_fin: r.checkOut ? r.checkOut.slice(0, 10) : null,
+      estado: statusToEstado(r.status),
+      precio_acordado: r.totalAmount,
+      pagado: sumarPagos(r.payments),
     }));
     return { ok: true, data: reservaciones };
   });
@@ -173,7 +236,7 @@ export async function getReservacionesDelPerro(
 // --------------------------------------------------------------------------
 export async function eliminarPago(id: string): Promise<ActionResult<null>> {
   return withSupabase("movimientos", async (supabase) => {
-    const { error } = await supabase.from("pagos").delete().eq("id", id);
+    const { error } = await supabase.from("payments").delete().eq("id", id);
     if (error) {
       console.error("[movimientos] Error al eliminar pago:", error);
       return { ok: false, error: ERROR_GENERICO };
@@ -186,7 +249,7 @@ export async function eliminarPago(id: string): Promise<ActionResult<null>> {
 
 export async function eliminarEgreso(id: string): Promise<ActionResult<null>> {
   return withSupabase("movimientos", async (supabase) => {
-    const { error } = await supabase.from("egresos").delete().eq("id", id);
+    const { error } = await supabase.from("expenses").delete().eq("id", id);
     if (error) {
       console.error("[movimientos] Error al eliminar egreso:", error);
       return { ok: false, error: ERROR_GENERICO };

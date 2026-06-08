@@ -1,6 +1,13 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { mesActual, mesSiguiente, etiquetaMesAnio, type MesAnio } from "@/lib/date";
-import { CATEGORIAS_CONOCIDAS, type Servicio, type PagoTipo, type TipoCosto } from "@/lib/labels";
+import {
+  CATEGORIAS_CONOCIDAS,
+  type Servicio,
+  type PagoTipo,
+  type TipoCosto,
+  type MetodoPago,
+  typeToServicio,
+} from "@/lib/labels";
 import {
   MovimientosHub,
   type IngresoItem,
@@ -45,20 +52,22 @@ export default async function MovimientosPage({
 
   const [pagosRes, egresosRes, ingMesRes, egrMesRes, perrosRes, catsRes] = await Promise.all([
     supabase
-      .from("pagos")
+      .from("payments")
       .select(
-        "id, monto, tipo, fecha, descripcion, reservacion:reservaciones(servicio, perro:perros(nombre))",
+        "id, monto:amount, tipo:kind, fecha:paidAt, metodo_pago:method, descripcion:notes, reservacion_id:reservationId",
       )
-      .gte("fecha", desde)
-      .lt("fecha", hasta)
-      .order("fecha", { ascending: false })
+      .gte("paidAt", desde)
+      .lt("paidAt", hasta)
+      .order("paidAt", { ascending: false })
       .limit(200),
     supabase
-      .from("egresos")
-      .select("id, fecha, descripcion, monto, categoria, tipo_costo, notas")
-      .gte("fecha", desde)
-      .lt("fecha", hasta)
-      .order("fecha", { ascending: false })
+      .from("expenses")
+      .select(
+        "id, fecha:date, descripcion:description, monto:amount, categoria:category, tipo_costo:costType, notas:notes",
+      )
+      .gte("date", desde)
+      .lt("date", hasta)
+      .order("date", { ascending: false })
       .limit(200),
     supabase
       .from("vw_ingresos_mensuales")
@@ -72,20 +81,43 @@ export default async function MovimientosPage({
       .eq("anio", anio)
       .eq("mes_num", mes)
       .maybeSingle(),
-    supabase.from("perros").select("id, nombre, cliente:clientes(nombre)").order("nombre"),
-    supabase.from("egresos").select("categoria"),
+    supabase
+      .from("pets")
+      .select("id, nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)")
+      .order("name"),
+    supabase.from("expenses").select("categoria:category"),
   ]);
 
+  // Servicio y nombre del perro de cada pago: se resuelven por reservationId
+  // contra la tabla unificada `reservations` (+ pets) en una consulta aparte.
+  const reservacionIds = Array.from(
+    new Set((pagosRes.data ?? []).map((p) => p.reservacion_id).filter(Boolean)),
+  );
+  const resvMap = new Map<string, { servicio: Servicio; perroNombre: string | null }>();
+  if (reservacionIds.length > 0) {
+    const { data: resvData } = await supabase
+      .from("reservations")
+      .select("id, reservationType, pet:pets(nombre:name)")
+      .in("id", reservacionIds);
+    for (const r of resvData ?? []) {
+      const perro = one(r.pet) as { nombre: string } | null;
+      resvMap.set(r.id, {
+        servicio: typeToServicio(r.reservationType),
+        perroNombre: perro?.nombre ?? null,
+      });
+    }
+  }
+
   const ingresos: IngresoItem[] = (pagosRes.data ?? []).map((p) => {
-    const resv = one(p.reservacion) as { servicio: Servicio; perro: unknown } | null;
-    const perro = one(resv?.perro) as { nombre: string } | null;
+    const resv = p.reservacion_id ? resvMap.get(p.reservacion_id) : undefined;
     return {
       id: p.id,
       monto: p.monto,
       tipo: p.tipo as PagoTipo,
-      fecha: p.fecha,
+      metodoPago: p.metodo_pago as MetodoPago,
+      fecha: p.fecha ?? "",
       servicio: resv?.servicio ?? null,
-      perroNombre: perro?.nombre ?? null,
+      perroNombre: resv?.perroNombre ?? null,
       descripcion: p.descripcion ?? null,
     };
   });

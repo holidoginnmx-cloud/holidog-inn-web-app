@@ -2,20 +2,15 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MARCA_REVISAR_PERRO } from "@/lib/perro";
+import { typeToServicio, SERVICIO_LABEL, type ReservationType } from "@/lib/labels";
 import { RevisionPanel, type PlaceholderItem, type PerroOpcion } from "@/components/domain/RevisionPanel";
 
 export const dynamic = "force-dynamic";
 
-const SERVICIO_LABEL: Record<string, string> = {
-  HOTEL: "Hotel",
-  ESTETICA: "Estética",
-  GUARDERIA: "Guardería",
-};
-
 type PagoEmbed = { monto: number | null };
 type ReservacionEmbed = {
-  servicio: string;
-  fecha_inicio: string;
+  servicio: ReservationType;
+  fecha_inicio: string | null;
   fecha_fin: string | null;
   pagos: PagoEmbed[] | null;
 };
@@ -75,16 +70,16 @@ export default async function RevisarPerrosPage() {
     const [{ data: phData, error: phErr }, { data: realesData, error: realesErr }] =
       await Promise.all([
         supabase
-          .from("perros")
+          .from("pets")
           .select(
-            "id, nombre, reservaciones(servicio, fecha_inicio, fecha_fin, pagos(monto))",
+            "id, nombre:name, reservaciones:reservations(servicio:reservationType, fecha_inicio:checkIn, fecha_fin:checkOut, pagos:payments(monto:amount))",
           )
-          .eq("notas", MARCA_REVISAR_PERRO)
-          .order("nombre", { ascending: true }),
+          .eq("notes", MARCA_REVISAR_PERRO)
+          .order("name", { ascending: true }),
         supabase
-          .from("perros")
-          .select("id, nombre, notas, cliente:clientes(nombre)")
-          .order("nombre", { ascending: true }),
+          .from("pets")
+          .select("id, nombre:name, notas:notes, cliente:users!pets_ownerId_fkey(nombre:firstName)")
+          .order("name", { ascending: true }),
       ]);
     if (phErr) throw phErr;
     if (realesErr) throw realesErr;
@@ -111,9 +106,12 @@ export default async function RevisarPerrosPage() {
         0,
       );
       const servicios = [
-        ...new Set(reservaciones.map((r) => SERVICIO_LABEL[r.servicio] ?? r.servicio)),
+        ...new Set(reservaciones.map((r) => SERVICIO_LABEL[typeToServicio(r.servicio)])),
       ];
-      const fechas = reservaciones.map((r) => r.fecha_inicio).filter(Boolean).sort();
+      const fechas = reservaciones
+        .map((r) => r.fecha_inicio)
+        .filter((f): f is string => Boolean(f))
+        .sort();
       return {
         id: p.id,
         nombre: p.nombre,

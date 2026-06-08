@@ -2,8 +2,12 @@ import { z } from "zod";
 import { opcional, checkbox, fechaOpcional } from "./helpers";
 import { clienteInputSchema } from "./cliente";
 
+export type { ClienteInput } from "./cliente";
+
 export const SEXO_VALUES = ["MACHO", "HEMBRA"] as const;
-export const TALLA_VALUES = ["EXTRA_CHICO", "CHICO", "MEDIANO", "GRANDE"] as const;
+// Tallas del esquema unificado (PetSize). El form sigue en español en sus
+// etiquetas, pero los valores son los del enum nuevo.
+export const TALLA_VALUES = ["XS", "S", "M", "L", "XL"] as const;
 
 // Peso: "" → null; número válido entre 0 y 120 kg. Si hay peso, la BD recalcula
 // la talla (el peso manda); si no hay peso, se respeta la talla seleccionada.

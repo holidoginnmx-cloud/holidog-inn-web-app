@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { sexToSexo } from "@/lib/perro";
 import { PerroForm, type PerroFormValues } from "@/components/domain/PerroForm";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +12,10 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
   const supabase = createSupabaseServerClient();
 
   const { data: perro, error } = await supabase
-    .from("perros")
-    .select("*, cliente:clientes(*)")
+    .from("pets")
+    .select(
+      "ownerId, nombre:name, raza:breed, sexo:sex, talla:size, fecha_nacimiento:birthDate, peso_kg:weight, veterinario:vetName, esterilizado:isNeutered, alergias:healthIssues, comportamiento:behavior, notas:notes, foto_url:photoUrl, cartilla_foto_url:cartillaUrl, cartillaStatus, cliente:users!pets_ownerId_fkey(nombre:firstName, telefono:phone, email)",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -23,20 +26,21 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
     nombre: string;
     telefono: string | null;
     email: string | null;
-    notas: string | null;
   } | null;
 
+  // Campos SIN equivalente en el esquema nuevo (se inicializan vacíos en el
+  // form): cliente.notas, perro.domicilio, cartilla_vence, desparasitacion_*.
   const initial: PerroFormValues = {
     cliente: {
       nombre: cli?.nombre ?? "",
       telefono: cli?.telefono ?? "",
       email: cli?.email ?? "",
-      notas: cli?.notas ?? "",
+      notas: "",
     },
     perro: {
       nombre: perro.nombre,
       raza: perro.raza ?? "",
-      sexo: (perro.sexo as "MACHO" | "HEMBRA" | null) ?? "",
+      sexo: sexToSexo(perro.sexo) ?? "",
       talla: (perro.talla as PerroFormValues["perro"]["talla"] | null) ?? "",
       fecha_nacimiento: perro.fecha_nacimiento ?? "",
       peso_kg: perro.peso_kg != null ? String(perro.peso_kg) : "",
@@ -45,11 +49,11 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
       veterinario: perro.veterinario ?? "",
       esterilizado: perro.esterilizado == null ? "" : perro.esterilizado ? "SI" : "NO",
       notas: perro.notas ?? "",
-      domicilio: perro.domicilio ?? "",
-      cartilla_vigente: perro.cartilla_vigente,
-      cartilla_vence: perro.cartilla_vence ?? "",
-      desparasitacion_vigente: perro.desparasitacion_vigente,
-      desparasitacion_vence: perro.desparasitacion_vence ?? "",
+      domicilio: "",
+      cartilla_vigente: perro.cartillaStatus === "APPROVED",
+      cartilla_vence: "",
+      desparasitacion_vigente: false,
+      desparasitacion_vence: "",
     },
   };
 
@@ -69,7 +73,7 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
       <PerroForm
         mode="editar"
         perroId={id}
-        clienteId={perro.cliente_id}
+        clienteId={perro.ownerId}
         initial={initial}
         fotoActualUrl={perro.foto_url}
         cartillaActualUrl={perro.cartilla_foto_url}

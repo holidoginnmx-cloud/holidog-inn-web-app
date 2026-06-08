@@ -23,6 +23,7 @@ import {
   type Servicio,
   type PagoTipo,
   type TipoCosto,
+  type MetodoPago,
 } from "@/lib/labels";
 import { PagoForm } from "./PagoForm";
 import { EgresoForm } from "./EgresoForm";
@@ -35,6 +36,7 @@ export type IngresoItem = {
   id: string;
   monto: number;
   tipo: PagoTipo;
+  metodoPago: MetodoPago;
   fecha: string;
   perroNombre: string | null;
   servicio: Servicio | null;
@@ -252,6 +254,7 @@ export function MovimientosHub({
                   servicio: editando.item.servicio,
                   monto: editando.item.monto,
                   tipo: editando.item.tipo,
+                  metodoPago: editando.item.metodoPago,
                   fecha: editando.item.fecha,
                   notas: editando.item.descripcion,
                 }}

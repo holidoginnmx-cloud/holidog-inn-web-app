@@ -15,9 +15,12 @@ import {
   SERVICIO_LABEL,
   PAGO_TIPO_OPTIONS,
   PAGO_TIPO_LABEL,
+  METODO_OPTIONS,
+  METODO_LABEL,
   ESTADO_LABEL,
   type Servicio,
   type PagoTipo,
+  type MetodoPago,
 } from "@/lib/labels";
 import { formatFecha, hoyISO } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
@@ -35,6 +38,7 @@ export type PagoEditable = {
   servicio: Servicio | null;
   monto: number;
   tipo: PagoTipo;
+  metodoPago: MetodoPago;
   fecha: string;
   notas: string | null;
 };
@@ -64,6 +68,7 @@ export function PagoForm({
   const [servicio, setServicio] = useState<string | null>(null);
   const [monto, setMonto] = useState(editar ? String(editar.monto) : "");
   const [tipo, setTipo] = useState<string>(editar?.tipo ?? "ABONO");
+  const [metodoPago, setMetodoPago] = useState<string>(editar?.metodoPago ?? "CASH");
   const [fecha, setFecha] = useState(editar?.fecha ?? hoyISO());
   const [notas, setNotas] = useState(editar?.notas ?? "");
   const [pending, setPending] = useState(false);
@@ -85,6 +90,7 @@ export function PagoForm({
     setServicio(null);
     setMonto("");
     setTipo("ABONO");
+    setMetodoPago("CASH");
     setFecha(hoyISO());
     setNotas("");
   }
@@ -94,7 +100,13 @@ export function PagoForm({
 
     if (esEdicion) {
       setPending(true);
-      const res = await actualizarPago(editar.pagoId, { monto, tipo, fecha, notas });
+      const res = await actualizarPago(editar.pagoId, {
+        monto,
+        tipo,
+        metodo_pago: metodoPago,
+        fecha,
+        notas,
+      });
       setPending(false);
       if (res.ok) {
         toast.success("Ingreso actualizado");
@@ -117,6 +129,7 @@ export function PagoForm({
       servicio: reservacionId === "nueva" ? servicio : null,
       monto,
       tipo,
+      metodo_pago: metodoPago,
       fecha,
       notas,
     });
@@ -218,6 +231,22 @@ export function PagoForm({
       <div className="space-y-1.5">
         <Label>Tipo</Label>
         <Pills options={TIPO_PILLS} value={tipo} onChange={setTipo} ariaLabel="Tipo de pago" />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="pago-metodo">Método de pago</Label>
+        <select
+          id="pago-metodo"
+          className={selectClass}
+          value={metodoPago}
+          onChange={(e) => setMetodoPago(e.target.value)}
+        >
+          {METODO_OPTIONS.map((m) => (
+            <option key={m} value={m}>
+              {METODO_LABEL[m]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1.5">

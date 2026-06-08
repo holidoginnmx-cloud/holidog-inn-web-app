@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { opcional, montoRequerido, fechaRequerida } from "./helpers";
-import { SERVICIO_OPTIONS, PAGO_TIPO_OPTIONS } from "@/lib/labels";
+import { SERVICIO_OPTIONS, PAGO_TIPO_OPTIONS, METODO_OPTIONS } from "@/lib/labels";
 
 // Validación autoritativa (server-side) de un pago (ingreso).
 // `reservacion_id` es "nueva" (crear reservación con este pago) o un UUID.
+// `metodo_pago` mapea a la columna `method` (ENUM PaymentMethod) y en el form
+// es un dropdown con METODO_OPTIONS/METODO_LABEL.
 export const pagoInputSchema = z
   .object({
     perro_id: z.uuid("Selecciona un perro"),
@@ -11,6 +13,7 @@ export const pagoInputSchema = z
     servicio: opcional(z.enum(SERVICIO_OPTIONS)),
     monto: montoRequerido,
     tipo: z.enum(PAGO_TIPO_OPTIONS),
+    metodo_pago: z.enum(METODO_OPTIONS),
     fecha: fechaRequerida,
     notas: opcional(z.string().max(1000)),
   })
@@ -26,6 +29,7 @@ export type PagoInput = z.infer<typeof pagoInputSchema>;
 export const pagoUpdateSchema = z.object({
   monto: montoRequerido,
   tipo: z.enum(PAGO_TIPO_OPTIONS),
+  metodo_pago: z.enum(METODO_OPTIONS),
   fecha: fechaRequerida,
   notas: opcional(z.string().max(1000)),
 });

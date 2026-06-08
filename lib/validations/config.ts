@@ -17,16 +17,31 @@ export const renombrarCategoriaSchema = z.object({
   nueva: z.string().trim().min(1, "El nombre no puede estar vacío").max(80),
 });
 
-// Edición de precios del catálogo de tarifas (cada fila por su `codigo`).
-export const tarifasInputSchema = z.object({
-  tarifas: z
-    .array(
-      z.object({
-        codigo: z.string().trim().min(1),
-        precio: montoNoNegativo,
-      }),
-    )
-    .min(1, "No hay tarifas que guardar"),
+// Edición de precios de hospedaje (singleton `lodging_pricing`). Cada campo es
+// un monto >= 0; `largeWeightKg` y `medicationSurchargePct` también lo son.
+export const lodgingPricingSchema = z.object({
+  pricePerDaySmall: montoNoNegativo,
+  pricePerDayLarge: montoNoNegativo,
+  priceProbarfSmall: montoNoNegativo,
+  priceProbarfLarge: montoNoNegativo,
+  daycarePricePerDay: montoNoNegativo,
+  largeWeightKg: montoNoNegativo,
+  medicationSurchargePct: montoNoNegativo,
 });
 
-export type TarifasInput = z.infer<typeof tarifasInputSchema>;
+export type LodgingPricingInput = z.infer<typeof lodgingPricingSchema>;
+
+// Edición de precios de estética: una fila por variante (`id`) de
+// `service_variants`. Solo editamos el precio.
+export const serviceVariantsSchema = z.object({
+  variantes: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        price: montoNoNegativo,
+      }),
+    )
+    .min(1, "No hay variantes que guardar"),
+});
+
+export type ServiceVariantsInput = z.infer<typeof serviceVariantsSchema>;

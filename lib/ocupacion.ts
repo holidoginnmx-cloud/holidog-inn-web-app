@@ -20,7 +20,9 @@ export type ResvLite = {
   horaCheckOut?: string | null;
 };
 
-// Reservaciones de HOTEL que ocupan un lugar en `fechaISO`.
+// Reservaciones que ocupan un lugar (cupo) en `fechaISO`.
+// Tras la migración, ocupan cupo tanto el HOTEL (STAY) como la GUARDERIA
+// (DAYCARE): la guardería ocupa un lugar ese día. La estética (BATH) no.
 // (Las fechas "YYYY-MM-DD" comparan bien lexicográficamente.)
 export function ocupantes(
   reservaciones: ResvLite[],
@@ -29,19 +31,19 @@ export function ocupantes(
 ): ResvLite[] {
   return reservaciones.filter(
     (r) =>
-      r.servicio === "HOTEL" &&
+      (r.servicio === "HOTEL" || r.servicio === "GUARDERIA") &&
       r.id !== excludeId &&
       r.fecha_inicio <= fechaISO &&
       fechaISO <= (r.fecha_fin ?? r.fecha_inicio),
   );
 }
 
-// Servicios de día (Estética / Guardería) que ocurren en `fechaISO`.
-// No ocupan plaza de hotel; se muestran como información adicional del día.
+// Servicios de día que NO ocupan cupo (Estética / baño) en `fechaISO`.
+// Se muestran como información adicional del día; el cupo lo manejan ocupantes().
 export function serviciosDia(reservaciones: ResvLite[], fechaISO: string): ResvLite[] {
   return reservaciones.filter(
     (r) =>
-      r.servicio !== "HOTEL" &&
+      r.servicio === "ESTETICA" &&
       r.fecha_inicio <= fechaISO &&
       fechaISO <= (r.fecha_fin ?? r.fecha_inicio),
   );

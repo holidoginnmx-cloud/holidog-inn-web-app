@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { typeToServicio } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,6 @@ function mesNombre(iso: string): string {
   return MESES[m - 1] ?? "";
 }
 
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
-
 // Exporta TODO a un .xlsx que replica la estructura del Excel original:
 // hoja "2026" con ingresos en columnas A-F y egresos en I-N (encabezados fila 8).
 export async function GET() {
@@ -42,13 +38,13 @@ export async function GET() {
 
   const [pagosRes, egresosRes] = await Promise.all([
     supabase
-      .from("pagos")
-      .select("fecha, monto, descripcion, reservacion:reservaciones(servicio)")
-      .order("fecha", { ascending: true }),
+      .from("payments")
+      .select("fecha:paidAt, monto:amount, descripcion:notes, reservacion_id:reservationId")
+      .order("paidAt", { ascending: true }),
     supabase
-      .from("egresos")
-      .select("fecha, descripcion, monto, categoria, tipo_costo")
-      .order("fecha", { ascending: true }),
+      .from("expenses")
+      .select("fecha:date, descripcion:description, monto:amount, categoria:category, tipo_costo:costType")
+      .order("date", { ascending: true }),
   ]);
 
   if (pagosRes.error || egresosRes.error) {
@@ -58,6 +54,20 @@ export async function GET() {
 
   const pagos = pagosRes.data ?? [];
   const egresos = egresosRes.data ?? [];
+
+  // El servicio de cada pago vive en la reservación (tabla unificada `reservations`).
+  // Se resuelve por id y se traduce reservationType -> etiqueta de servicio.
+  const reservacionIds = Array.from(
+    new Set(pagos.map((p) => p.reservacion_id).filter(Boolean)),
+  );
+  const servicioPorResv = new Map<string, string>();
+  if (reservacionIds.length > 0) {
+    const { data: resvData } = await supabase
+      .from("reservations")
+      .select("id, reservationType")
+      .in("id", reservacionIds);
+    for (const r of resvData ?? []) servicioPorResv.set(r.id, typeToServicio(r.reservationType));
+  }
 
   // AOA: filas 1-7 vacías, fila 8 encabezados, datos desde fila 9 (como el original).
   const aoa: (string | number | null)[][] = [];
@@ -84,10 +94,11 @@ export async function GET() {
     const row: (string | number | null)[] = new Array(14).fill(null);
     const p = pagos[i];
     if (p) {
-      const servicio = (one(p.reservacion) as { servicio: string } | null)?.servicio ?? "";
-      row[0] = p.fecha;
-      row[1] = Number(p.fecha.slice(5, 7));
-      row[2] = mesNombre(p.fecha);
+      const fecha = p.fecha ?? "";
+      const servicio = p.reservacion_id ? (servicioPorResv.get(p.reservacion_id) ?? "") : "";
+      row[0] = fecha;
+      row[1] = fecha ? Number(fecha.slice(5, 7)) : null;
+      row[2] = fecha ? mesNombre(fecha) : "";
       row[3] = p.descripcion ?? "";
       row[4] = p.monto;
       row[5] = servicio;

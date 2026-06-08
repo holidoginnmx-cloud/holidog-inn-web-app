@@ -5,7 +5,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ReservacionForm, type ReservacionInitial } from "@/components/domain/ReservacionForm";
 import { EliminarReservacionButton } from "@/components/domain/EliminarReservacionButton";
 import { PagoBadge } from "@/components/domain/PagoBadge";
-import { sumarPagos } from "@/lib/reservacion";
+import { fechaDeTimestamp, horaDeTimestamp } from "@/lib/reservacion";
+import { typeToServicio, statusToEstado } from "@/lib/labels";
+import type { Enums } from "@/lib/supabase/types";
 import { formatMoneda } from "@/lib/utils";
 import { cargarDatosFormReservacion } from "../../data";
 
@@ -20,9 +22,9 @@ export default async function EditarReservacionPage({
   const supabase = createSupabaseServerClient();
 
   const { data: r, error } = await supabase
-    .from("reservaciones")
+    .from("reservations")
     .select(
-      "id, perro_id, servicio, fecha_inicio, fecha_fin, hora_check_in, hora_check_out, precio_acordado, anticipo_acordado, estado, notas",
+      "id, petId, reservationType, checkIn, checkOut, appointmentAt, totalAmount, depositAgreed, status, notes",
     )
     .eq("id", id)
     .maybeSingle();
@@ -30,23 +32,32 @@ export default async function EditarReservacionPage({
   if (error) console.error("[reservaciones] Error al cargar para editar:", error);
   if (!r) notFound();
 
-  const { data: pagos } = await supabase.from("pagos").select("monto").eq("reservacion_id", id);
-  const pagado = sumarPagos(pagos);
+  const { data: pagos } = await supabase
+    .from("payments")
+    .select("amount")
+    .eq("reservationId", id);
+  const pagado = (pagos ?? []).reduce((acc, p) => acc + (p.amount ?? 0), 0);
 
   const { perros, reservacionesActivas, cupo, pesoPorPerro, tallaPorPerro, tarifas } =
     await cargarDatosFormReservacion();
 
+  const tipo = r.reservationType as Enums<"ReservationType">;
+  // STAY: checkIn/checkOut. ESTETICA/GUARDERIA: appointmentAt (de un día).
+  const inicioTs = tipo === "STAY" ? r.checkIn : r.appointmentAt;
+  const finTs = tipo === "STAY" ? r.checkOut : null;
+  const precioAcordado = r.totalAmount ?? 0;
+
   const initial: ReservacionInitial = {
-    perroId: r.perro_id,
-    servicio: r.servicio,
-    fecha_inicio: r.fecha_inicio,
-    fecha_fin: r.fecha_fin ?? "",
-    hora_check_in: r.hora_check_in?.slice(0, 5) ?? "",
-    hora_check_out: r.hora_check_out?.slice(0, 5) ?? "",
-    precio_acordado: r.precio_acordado != null ? String(r.precio_acordado) : "",
-    anticipo_acordado: r.anticipo_acordado != null ? String(r.anticipo_acordado) : "",
-    estado: r.estado,
-    notas: r.notas ?? "",
+    perroId: r.petId,
+    servicio: typeToServicio(tipo),
+    fecha_inicio: fechaDeTimestamp(inicioTs) ?? "",
+    fecha_fin: fechaDeTimestamp(finTs) ?? "",
+    hora_check_in: horaDeTimestamp(r.checkIn) ?? "",
+    hora_check_out: horaDeTimestamp(r.checkOut) ?? "",
+    precio_acordado: String(precioAcordado),
+    anticipo_acordado: r.depositAgreed != null ? String(r.depositAgreed) : "",
+    estado: statusToEstado(r.status as Enums<"ReservationStatus">),
+    notas: r.notes ?? "",
   };
 
   return (
@@ -66,13 +77,13 @@ export default async function EditarReservacionPage({
       <div className="space-y-2 rounded-xl border border-neutral-border bg-white p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-brand-teal">Resumen de pago</h2>
-          <PagoBadge precioAcordado={r.precio_acordado} pagado={pagado} />
+          <PagoBadge precioAcordado={precioAcordado} pagado={pagado} />
         </div>
         <dl className="grid grid-cols-3 gap-2 text-center">
           <div>
             <dt className="text-xs text-neutral-muted">Acordado</dt>
             <dd className="text-sm font-medium text-neutral-ink">
-              {formatMoneda(r.precio_acordado)}
+              {formatMoneda(precioAcordado)}
             </dd>
           </div>
           <div>
@@ -82,7 +93,7 @@ export default async function EditarReservacionPage({
           <div>
             <dt className="text-xs text-neutral-muted">Saldo</dt>
             <dd className="text-sm font-medium text-neutral-ink">
-              {formatMoneda(r.precio_acordado - pagado)}
+              {formatMoneda(precioAcordado - pagado)}
             </dd>
           </div>
         </dl>

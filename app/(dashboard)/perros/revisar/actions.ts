@@ -6,11 +6,11 @@ import { MARCA_REVISAR_PERRO } from "@/lib/perro";
 
 const ERROR_GENERICO = "No se pudo completar. Intenta de nuevo.";
 
-// Lee el placeholder y valida que de verdad sea un "REVISAR". Devuelve su cliente_id.
+// Lee el placeholder y valida que de verdad sea un "REVISAR". Devuelve su ownerId.
 async function leerPlaceholder(supabase: DB, perroId: string): Promise<string | null | "error"> {
   const { data, error } = await supabase
-    .from("perros")
-    .select("cliente_id, notas")
+    .from("pets")
+    .select("ownerId, notas:notes")
     .eq("id", perroId)
     .maybeSingle();
   if (error || !data) {
@@ -21,21 +21,21 @@ async function leerPlaceholder(supabase: DB, perroId: string): Promise<string | 
     console.error("[revisar] El perro no es un placeholder de revisión:", perroId);
     return "error";
   }
-  return data.cliente_id;
+  return data.ownerId;
 }
 
 // Si el cliente ya no tiene perros, lo borramos (los placeholder son 1 cliente : 1 perro).
 async function borrarClienteSiHuerfano(supabase: DB, clienteId: string): Promise<void> {
   const { count, error } = await supabase
-    .from("perros")
+    .from("pets")
     .select("id", { count: "exact", head: true })
-    .eq("cliente_id", clienteId);
+    .eq("ownerId", clienteId);
   if (error) {
     console.error("[revisar] Error al contar perros del cliente:", error);
     return;
   }
   if ((count ?? 0) === 0) {
-    await supabase.from("clientes").delete().eq("id", clienteId);
+    await supabase.from("users").delete().eq("id", clienteId);
   }
 }
 
@@ -63,16 +63,16 @@ export async function reasignarPlaceholder(
 
     // 1) Mover las reservaciones al perro real.
     const { error: updErr } = await supabase
-      .from("reservaciones")
-      .update({ perro_id: realPerroId })
-      .eq("perro_id", placeholderId);
+      .from("reservations")
+      .update({ petId: realPerroId })
+      .eq("petId", placeholderId);
     if (updErr) {
       console.error("[revisar] Error al mover reservaciones:", updErr);
       return { ok: false, error: ERROR_GENERICO };
     }
 
     // 2) Borrar el placeholder (ya sin reservaciones colgando).
-    const { error: delErr } = await supabase.from("perros").delete().eq("id", placeholderId);
+    const { error: delErr } = await supabase.from("pets").delete().eq("id", placeholderId);
     if (delErr) {
       console.error("[revisar] Error al borrar el placeholder:", delErr);
       return { ok: false, error: ERROR_GENERICO };
@@ -96,7 +96,7 @@ export async function eliminarPlaceholder(placeholderId: string): Promise<Action
     const clienteId = await leerPlaceholder(supabase, placeholderId);
     if (clienteId === "error") return { ok: false, error: ERROR_GENERICO };
 
-    const { error } = await supabase.from("perros").delete().eq("id", placeholderId);
+    const { error } = await supabase.from("pets").delete().eq("id", placeholderId);
     if (error) {
       console.error("[revisar] Error al eliminar el placeholder:", error);
       return { ok: false, error: ERROR_GENERICO };

@@ -3,7 +3,12 @@ import { Download, Upload, ExternalLink, Handshake } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { ConfigForm } from "@/components/domain/ConfigForm";
-import { TarifasForm, type TarifaItem } from "@/components/domain/TarifasForm";
+import {
+  TarifasForm,
+  type TarifasHotel,
+  type VarianteEstetica,
+} from "@/components/domain/TarifasForm";
+import type { PetSize } from "@/lib/labels";
 import { CategoriasEditor, type CategoriaUso } from "@/components/domain/CategoriasEditor";
 import { CollapsibleBlock } from "@/components/domain/dashboard/CollapsibleBlock";
 import pkg from "@/package.json";
@@ -22,10 +27,24 @@ function Seccion({ title, children }: { title: string; children: React.ReactNode
 export default async function ConfigPage() {
   const supabase = createSupabaseServerClient();
 
-  const [cfgRes, egresosRes, tarifasRes] = await Promise.all([
-    supabase.from("config").select("nombre_hotel, cupo_maximo").eq("id", 1).maybeSingle(),
-    supabase.from("egresos").select("categoria"),
-    supabase.from("tarifas").select("codigo, servicio, etiqueta, precio").order("orden"),
+  const [cfgRes, egresosRes, lodgingRes, variantsRes] = await Promise.all([
+    supabase
+      .from("hotel_config")
+      .select("nombre_hotel:hotelName, cupo_maximo:maxCapacity")
+      .eq("id", "singleton")
+      .maybeSingle(),
+    supabase.from("expenses").select("categoria:category"),
+    supabase
+      .from("lodging_pricing")
+      .select(
+        "pricePerDaySmall, pricePerDayLarge, priceProbarfSmall, priceProbarfLarge, daycarePricePerDay, largeWeightKg, medicationSurchargePct",
+      )
+      .eq("id", "singleton")
+      .maybeSingle(),
+    supabase
+      .from("service_variants")
+      .select("id, petSize, deslanado, corte, price")
+      .order("petSize"),
   ]);
 
   const nombre = cfgRes.data?.nombre_hotel ?? "Holidog Inn";
@@ -39,12 +58,27 @@ export default async function ConfigPage() {
     .map(([nombre, usos]) => ({ nombre, usos }))
     .sort((a, b) => b.usos - a.usos);
 
-  const tarifas: TarifaItem[] = (tarifasRes.data ?? []).map((t) => ({
-    codigo: t.codigo,
-    servicio: t.servicio,
-    etiqueta: t.etiqueta,
-    precio: Number(t.precio),
+  const tarifasHotel: TarifasHotel | null = lodgingRes.data
+    ? {
+        pricePerDaySmall: Number(lodgingRes.data.pricePerDaySmall),
+        pricePerDayLarge: Number(lodgingRes.data.pricePerDayLarge),
+        priceProbarfSmall: Number(lodgingRes.data.priceProbarfSmall),
+        priceProbarfLarge: Number(lodgingRes.data.priceProbarfLarge),
+        daycarePricePerDay: Number(lodgingRes.data.daycarePricePerDay),
+        largeWeightKg: Number(lodgingRes.data.largeWeightKg),
+        medicationSurchargePct: Number(lodgingRes.data.medicationSurchargePct),
+      }
+    : null;
+
+  const variantesEstetica: VarianteEstetica[] = (variantsRes.data ?? []).map((v) => ({
+    id: v.id,
+    petSize: v.petSize as PetSize,
+    deslanado: v.deslanado,
+    corte: v.corte,
+    price: Number(v.price),
   }));
+
+  const hayTarifas = tarifasHotel !== null || variantesEstetica.length > 0;
 
   const repoUrl = process.env.NEXT_PUBLIC_REPO_URL;
 
@@ -56,9 +90,9 @@ export default async function ConfigPage() {
         <ConfigForm nombre={nombre} cupo={cupo} />
       </Seccion>
 
-      {tarifas.length > 0 && (
+      {hayTarifas && (
         <CollapsibleBlock title="Tarifas" defaultOpen={false}>
-          <TarifasForm tarifas={tarifas} />
+          <TarifasForm hotel={tarifasHotel} estetica={variantesEstetica} />
         </CollapsibleBlock>
       )}
 

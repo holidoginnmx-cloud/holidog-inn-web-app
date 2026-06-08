@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function PatrociniosPage() {
   const supabase = createSupabaseServerClient();
 
+  // sponsors (esquema unificado en inglés); alias a los nombres que el UI espera.
   const { data, error } = await supabase
-    .from("patrocinios")
-    .select("id, nombre, patrocina_bano, patrocina_corral")
-    .order("nombre");
+    .from("sponsors")
+    .select("id, nombre:name, patrocina_bano:sponsorsBath, patrocina_corral:sponsorsKennel")
+    .order("name");
 
   if (error) console.error("[patrocinios] listar:", error);
 

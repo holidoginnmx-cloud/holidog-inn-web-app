@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { TallaBadge } from "./TallaBadge";
 import { EliminarPerroButton } from "./EliminarPerroButton";
-import { SEXO_LABEL, inicial, type Talla, type Sexo } from "@/lib/perro";
-import { formatFecha, calcularEdad, estadoCartilla } from "@/lib/date";
+import { SEXO_LABEL, inicial, type PetSize, type Sexo } from "@/lib/perro";
+import { formatFecha, calcularEdad } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
 import { obtenerDetallePerro, type PerroDetalle } from "@/app/(dashboard)/perros/actions";
 
@@ -102,11 +102,8 @@ export function PerroDetalleContenido({
 
   const { perro, cliente, reservaciones } = detalle;
   const edad = calcularEdad(perro.fecha_nacimiento);
-  const cartilla = estadoCartilla(perro.cartilla_vigente, perro.cartilla_vence);
-  const desparasitacion = estadoCartilla(
-    perro.desparasitacion_vigente,
-    perro.desparasitacion_vence,
-  );
+  // Sin fecha de vencimiento (sin equivalente en pets): estado binario.
+  const cartilla = perro.cartilla_vigente ? "vigente" : "vencida";
 
   return (
     <div className="space-y-5">
@@ -136,7 +133,7 @@ export function PerroDetalleContenido({
           {cliente?.nombre ?? "Sin cliente"}
         </Dialog.Description>
         <div className="mt-2">
-          <TallaBadge talla={perro.talla as Talla | null} />
+          <TallaBadge talla={perro.talla as PetSize | null} />
         </div>
       </div>
 
@@ -179,63 +176,23 @@ export function PerroDetalleContenido({
         </div>
       )}
 
-      {/* Cartilla */}
+      {/* Cartilla (estado binario; sin fecha de vencimiento en el esquema nuevo) */}
       <div
         className={`flex items-center gap-3 rounded-xl border p-4 ${
           cartilla === "vigente"
             ? "border-emerald-200 bg-emerald-50"
-            : cartilla === "por_vencer"
-              ? "border-amber-200 bg-amber-50"
-              : "border-rose-200 bg-rose-50"
+            : "border-rose-200 bg-rose-50"
         }`}
       >
-        {cartilla === "vencida" ? (
-          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
-        ) : (
+        {cartilla === "vigente" ? (
           <ShieldCheck className="size-5 text-emerald-600" aria-hidden />
+        ) : (
+          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
         )}
         <div className="text-sm">
           <p className="font-medium text-neutral-ink">
-            {cartilla === "vencida"
-              ? "Cartilla no vigente"
-              : cartilla === "por_vencer"
-                ? "Cartilla por vencer"
-                : "Cartilla vigente"}
+            {cartilla === "vigente" ? "Cartilla vigente" : "Cartilla no vigente"}
           </p>
-          {perro.cartilla_vence && (
-            <p className="text-neutral-muted">Vence el {formatFecha(perro.cartilla_vence)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Desparasitación */}
-      <div
-        className={`flex items-center gap-3 rounded-xl border p-4 ${
-          desparasitacion === "vigente"
-            ? "border-emerald-200 bg-emerald-50"
-            : desparasitacion === "por_vencer"
-              ? "border-amber-200 bg-amber-50"
-              : "border-rose-200 bg-rose-50"
-        }`}
-      >
-        {desparasitacion === "vencida" ? (
-          <ShieldAlert className="size-5 text-rose-600" aria-hidden />
-        ) : (
-          <ShieldCheck className="size-5 text-emerald-600" aria-hidden />
-        )}
-        <div className="text-sm">
-          <p className="font-medium text-neutral-ink">
-            {desparasitacion === "vencida"
-              ? "Desparasitación no vigente"
-              : desparasitacion === "por_vencer"
-                ? "Desparasitación por vencer"
-                : "Desparasitación vigente"}
-          </p>
-          {perro.desparasitacion_vence && (
-            <p className="text-neutral-muted">
-              Vence el {formatFecha(perro.desparasitacion_vence)}
-            </p>
-          )}
         </div>
       </div>
 

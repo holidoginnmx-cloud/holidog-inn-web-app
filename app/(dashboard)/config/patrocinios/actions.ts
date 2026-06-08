@@ -12,8 +12,15 @@ export async function crearPatrocinio(input: unknown): Promise<ActionResult<{ id
 
   return withSupabase("patrocinios", async (supabase) => {
     const { data, error } = await supabase
-      .from("patrocinios")
-      .insert(v.data)
+      .from("sponsors")
+      .insert({
+        // supabase-js no usa los defaults de Prisma (cuid/@updatedAt son a nivel app)
+        id: crypto.randomUUID(),
+        name: v.data.nombre,
+        sponsorsBath: v.data.patrocina_bano,
+        sponsorsKennel: v.data.patrocina_corral,
+        updatedAt: new Date().toISOString(),
+      })
       .select("id")
       .single();
     if (error || !data) {
@@ -34,7 +41,14 @@ export async function actualizarPatrocinio(
   if (!v.ok) return v;
 
   return withSupabase("patrocinios", async (supabase) => {
-    const { error } = await supabase.from("patrocinios").update(v.data).eq("id", id);
+    const { error } = await supabase
+      .from("sponsors")
+      .update({
+        name: v.data.nombre,
+        sponsorsBath: v.data.patrocina_bano,
+        sponsorsKennel: v.data.patrocina_corral,
+      })
+      .eq("id", id);
     if (error) {
       console.error("[patrocinios] actualizar:", error);
       return { ok: false, error: ERROR_GENERICO };
@@ -47,7 +61,7 @@ export async function actualizarPatrocinio(
 
 export async function eliminarPatrocinio(id: string): Promise<ActionResult<null>> {
   return withSupabase("patrocinios", async (supabase) => {
-    const { error } = await supabase.from("patrocinios").delete().eq("id", id);
+    const { error } = await supabase.from("sponsors").delete().eq("id", id);
     if (error) {
       console.error("[patrocinios] eliminar:", error);
       return { ok: false, error: ERROR_GENERICO };

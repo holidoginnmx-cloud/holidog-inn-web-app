@@ -1,13 +1,16 @@
 import Image from "next/image";
-import { inicial, type Talla } from "@/lib/perro";
+import { inicial, type PetSize } from "@/lib/perro";
+import type { Servicio } from "@/lib/labels";
 import { TallaBadge } from "./TallaBadge";
 
 export type PerroListItem = {
   id: string;
   nombre: string;
-  talla: Talla | null;
+  talla: PetSize | null;
   foto_url: string | null;
   cliente: { nombre: string } | null;
+  // Servicios distintos presentes en el historial de reservaciones del perro.
+  servicios: Servicio[];
 };
 
 // Tarjeta de perro para la cuadrícula de 2 columnas: fila compacta con foto
