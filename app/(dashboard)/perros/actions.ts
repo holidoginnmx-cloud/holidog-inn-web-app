@@ -204,10 +204,28 @@ export async function actualizarClienteYPerro(
       return { ok: false, error: ERROR_GENERICO };
     }
 
+    // Cartilla: la BD tiene 4 estados (PENDING/APPROVED/REJECTED/EXPIRED), varios
+    // del flujo de revisión de la app móvil. El toggle del web es booleano, así
+    // que NO debe colapsar esos estados a null. Regla no destructiva: ON →
+    // APPROVED; OFF → solo limpia una aprobación previa (APPROVED), y conserva
+    // los estados de revisión (PENDING/REJECTED/EXPIRED). (Bug reportado por Javi.)
+    const { data: cartActual } = await supabase
+      .from("pets")
+      .select("cartillaStatus")
+      .eq("id", perroId)
+      .maybeSingle();
+    const prevCartilla = cartActual?.cartillaStatus ?? null;
+    const cartillaStatus = perro.cartilla_vigente
+      ? "APPROVED"
+      : prevCartilla === "APPROVED"
+        ? null
+        : prevCartilla;
+
     const { error: perroErr } = await supabase
       .from("pets")
       .update({
         ...perroAMascota(perro),
+        cartillaStatus,
         updatedAt: new Date().toISOString(),
         ...(photoUrl ? { photoUrl } : {}),
         ...(cartillaUrl ? { cartillaUrl } : {}),

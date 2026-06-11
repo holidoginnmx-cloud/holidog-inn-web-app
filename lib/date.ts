@@ -8,9 +8,14 @@ const fmtFechaCorta = new Intl.DateTimeFormat("es-MX", {
 });
 
 function parse(value: string): Date | null {
-  // Para "YYYY-MM-DD" anclamos a medianoche local para evitar el corrimiento
-  // de un día por zona horaria.
-  const d = value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value);
+  // Tomamos solo la parte de fecha "YYYY-MM-DD" (los timestamptz llegan como ISO;
+  // aquí siempre nos interesa el día calendario, no la hora) y la anclamos a
+  // medianoche local para evitar el corrimiento de un día por zona horaria
+  // —p. ej. un birthDate guardado a medianoche UTC se vería un día antes en MX—.
+  const soloFecha = value.slice(0, 10);
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(soloFecha)
+    ? new Date(`${soloFecha}T00:00:00`)
+    : new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -47,12 +52,6 @@ export function estadoCartilla(
   if (dias < 0) return "vencida";
   if (dias <= 30) return "por_vencer";
   return "vigente";
-}
-
-// Hora "HH:MM[:SS]" (de un campo time de Postgres) → "HH:MM". "—" si null.
-export function formatHora(value: string | null | undefined): string {
-  if (!value) return "—";
-  return value.slice(0, 5);
 }
 
 // Fecha de hoy en formato "YYYY-MM-DD" (zona local, sin corrimiento UTC).

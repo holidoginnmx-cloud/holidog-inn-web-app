@@ -42,7 +42,10 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
       raza: perro.raza ?? "",
       sexo: sexToSexo(perro.sexo) ?? "",
       talla: (perro.talla as PerroFormValues["perro"]["talla"] | null) ?? "",
-      fecha_nacimiento: perro.fecha_nacimiento ?? "",
+      // birthDate es un timestamp en la BD ("2020-05-15T00:00:00+00:00"); el
+      // <input type="date"> solo acepta "YYYY-MM-DD". Sin recortar, el input se
+      // renderiza vacío y al guardar borraría la fecha. (Bug reportado por Javi.)
+      fecha_nacimiento: perro.fecha_nacimiento ? perro.fecha_nacimiento.slice(0, 10) : "",
       peso_kg: perro.peso_kg != null ? String(perro.peso_kg) : "",
       alergias: perro.alergias ?? "",
       comportamiento: perro.comportamiento ?? "",

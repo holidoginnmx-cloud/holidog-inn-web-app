@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, TrendingUp, TrendingDown, Trash2, Wallet, Receipt, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  Trash2,
+  Wallet,
+  Receipt,
+  ChevronDown,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -53,9 +63,22 @@ export type EgresoItem = {
   notas: string | null;
 };
 
+// Reservación con saldo por cobrar (bandeja de cobranza, global, sin filtro de mes).
+export type PendienteItem = {
+  reservacionId: string;
+  perroId: string;
+  perroNombre: string;
+  clienteNombre: string | null;
+  servicio: Servicio | null;
+  fecha: string;
+  precioAcordado: number;
+  pagado: number;
+  saldo: number;
+};
+
 type Editando = { tipo: "pago"; item: IngresoItem } | { tipo: "egreso"; item: EgresoItem } | null;
 
-type Tab = "ingresos" | "egresos";
+type Tab = "ingresos" | "egresos" | "pendientes";
 
 // Color por semana del mes: borde izquierdo + fondo tenue + chip de leyenda.
 // Hasta 6 semanas: azul, verde, amarillo, naranja, rosa, morado.
@@ -97,6 +120,7 @@ function agruparPorSemana<T extends { fecha: string; monto: number }>(
 export function MovimientosHub({
   ingresos,
   egresos,
+  pendientes,
   totalIngresosMes,
   totalEgresosMes,
   mesLabel,
@@ -107,6 +131,7 @@ export function MovimientosHub({
 }: {
   ingresos: IngresoItem[];
   egresos: EgresoItem[];
+  pendientes: PendienteItem[];
   totalIngresosMes: number;
   totalEgresosMes: number;
   mesLabel: string;
@@ -118,120 +143,196 @@ export function MovimientosHub({
   const [tab, setTab] = useState<Tab>("ingresos");
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Editando>(null);
+  const [cobrando, setCobrando] = useState<PendienteItem | null>(null);
   const esIngresos = tab === "ingresos";
+  const esEgresos = tab === "egresos";
+  const esPendientes = tab === "pendientes";
   const lista = esIngresos ? ingresos : egresos;
+
+  const totalPendiente = pendientes.reduce((s, p) => s + p.saldo, 0);
 
   function abrirNuevo() {
     setEditando(null);
+    setCobrando(null);
     setOpen(true);
   }
 
-  // Atajo: "n" abre la captura de un nuevo movimiento (desktop).
-  useHotkey("n", abrirNuevo, !open);
+  function cerrarSheet() {
+    setOpen(false);
+    setEditando(null);
+    setCobrando(null);
+  }
 
-  const tituloSheet = editando
-    ? editando.tipo === "pago"
-      ? "Editar ingreso"
-      : "Editar egreso"
-    : esIngresos
-      ? "Nuevo ingreso"
-      : "Nuevo egreso";
+  // Atajo: "n" abre la captura de un nuevo movimiento (solo en ingresos/egresos).
+  useHotkey("n", abrirNuevo, !open && !esPendientes);
 
-  const descSheet = editando
-    ? "Modifica los datos y guarda los cambios."
-    : esIngresos
-      ? "Registra un pago."
-      : "Registra un gasto.";
+  const tituloSheet = cobrando
+    ? "Registrar pago"
+    : editando
+      ? editando.tipo === "pago"
+        ? "Editar ingreso"
+        : "Editar egreso"
+      : esIngresos
+        ? "Nuevo ingreso"
+        : "Nuevo egreso";
+
+  const descSheet = cobrando
+    ? "Aplica un pago al saldo pendiente de esta reservación."
+    : editando
+      ? "Modifica los datos y guarda los cambios."
+      : esIngresos
+        ? "Registra un pago."
+        : "Registra un gasto.";
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => setTab("ingresos")}
           aria-pressed={esIngresos}
           className={cn(
-            "flex h-12 items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors",
+            "flex h-12 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors",
             focusRing,
             esIngresos
               ? "bg-brand-ingreso text-white"
               : "border border-neutral-border bg-white text-neutral-muted",
           )}
         >
-          <TrendingUp className="size-5" aria-hidden />
+          <TrendingUp className="size-5 shrink-0" aria-hidden />
           Ingresos
         </button>
         <button
           type="button"
           onClick={() => setTab("egresos")}
-          aria-pressed={!esIngresos}
+          aria-pressed={esEgresos}
           className={cn(
-            "flex h-12 items-center justify-center gap-2 rounded-xl text-base font-semibold transition-colors",
+            "flex h-12 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors",
             focusRing,
-            !esIngresos
+            esEgresos
               ? "bg-brand-egreso text-white"
               : "border border-neutral-border bg-white text-neutral-muted",
           )}
         >
-          <TrendingDown className="size-5" aria-hidden />
+          <TrendingDown className="size-5 shrink-0" aria-hidden />
           Egresos
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("pendientes")}
+          aria-pressed={esPendientes}
+          className={cn(
+            "flex h-12 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors",
+            focusRing,
+            esPendientes
+              ? "bg-amber-500 text-white"
+              : "border border-neutral-border bg-white text-neutral-muted",
+          )}
+        >
+          <Clock className="size-5 shrink-0" aria-hidden />
+          Pendientes
         </button>
       </div>
 
       <div className="rounded-xl border border-neutral-border bg-white p-4">
-        <p className="text-xs text-neutral-muted">Total del mes</p>
+        <p className="text-xs text-neutral-muted">
+          {esPendientes ? "Total pendiente" : "Total del mes"}
+        </p>
         <p
           className={cn(
             "text-3xl font-bold tracking-tight",
-            esIngresos ? "text-brand-ingreso" : "text-brand-egreso",
+            esIngresos
+              ? "text-brand-ingreso"
+              : esEgresos
+                ? "text-brand-egreso"
+                : "text-amber-600",
           )}
         >
-          {formatMoneda(esIngresos ? totalIngresosMes : totalEgresosMes)}
+          {formatMoneda(
+            esIngresos ? totalIngresosMes : esEgresos ? totalEgresosMes : totalPendiente,
+          )}
         </p>
       </div>
 
-      <section className="space-y-2">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold capitalize text-neutral-muted">{mesLabel}</h2>
-          <span className="text-xs text-neutral-muted">
-            {lista.length} {lista.length === 1 ? "movimiento" : "movimientos"}
-          </span>
-        </div>
-        <ListaPorSemana
-          tab={tab}
-          ingresos={ingresos}
-          egresos={egresos}
-          anio={anio}
-          mes={mes}
-          onEditIngreso={(item) => {
-            setEditando({ tipo: "pago", item });
-            setOpen(true);
-          }}
-          onEditEgreso={(item) => {
-            setEditando({ tipo: "egreso", item });
-            setOpen(true);
-          }}
-        />
-      </section>
+      {esPendientes ? (
+        <section className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-neutral-muted">Pagos por cobrar</h2>
+            <span className="text-xs text-neutral-muted">
+              {pendientes.length} {pendientes.length === 1 ? "reservación" : "reservaciones"}
+            </span>
+          </div>
+          {pendientes.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="Sin pagos pendientes"
+              description="Todas las reservaciones están al corriente."
+            />
+          ) : (
+            <ul className="space-y-2">
+              {pendientes.map((p) => (
+                <FilaPendiente
+                  key={p.reservacionId}
+                  item={p}
+                  onCobrar={() => {
+                    setEditando(null);
+                    setCobrando(p);
+                    setOpen(true);
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <section className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold capitalize text-neutral-muted">{mesLabel}</h2>
+            <span className="text-xs text-neutral-muted">
+              {lista.length} {lista.length === 1 ? "movimiento" : "movimientos"}
+            </span>
+          </div>
+          <ListaPorSemana
+            tab={tab}
+            ingresos={ingresos}
+            egresos={egresos}
+            anio={anio}
+            mes={mes}
+            onEditIngreso={(item) => {
+              setEditando({ tipo: "pago", item });
+              setOpen(true);
+            }}
+            onEditEgreso={(item) => {
+              setEditando({ tipo: "egreso", item });
+              setOpen(true);
+            }}
+          />
+        </section>
+      )}
 
-      <button
-        type="button"
-        onClick={abrirNuevo}
-        aria-label={esIngresos ? "Nuevo ingreso (tecla N)" : "Nuevo egreso (tecla N)"}
-        className={cn(
-          "fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-30 flex size-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95",
-          esIngresos ? "bg-brand-ingreso" : "bg-brand-egreso",
-          focusRing,
-        )}
-      >
-        <Plus className="size-7" aria-hidden />
-      </button>
+      {!esPendientes && (
+        <button
+          type="button"
+          onClick={abrirNuevo}
+          aria-label={esIngresos ? "Nuevo ingreso (tecla N)" : "Nuevo egreso (tecla N)"}
+          className={cn(
+            "fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-4 z-30 flex size-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95",
+            esIngresos ? "bg-brand-ingreso" : "bg-brand-egreso",
+            focusRing,
+          )}
+        >
+          <Plus className="size-7" aria-hidden />
+        </button>
+      )}
 
       <Sheet
         open={open}
         onOpenChange={(o) => {
           setOpen(o);
-          if (!o) setEditando(null);
+          if (!o) {
+            setEditando(null);
+            setCobrando(null);
+          }
         }}
       >
         <SheetContent
@@ -244,7 +345,20 @@ export function MovimientosHub({
           </SheetHeader>
 
           <div className="py-4">
-            {editando?.tipo === "pago" ? (
+            {cobrando ? (
+              <PagoForm
+                key={cobrando.reservacionId}
+                perros={perros}
+                prefill={{
+                  perroId: cobrando.perroId,
+                  perroNombre: cobrando.perroNombre,
+                  reservacionId: cobrando.reservacionId,
+                  servicio: cobrando.servicio,
+                  saldo: cobrando.saldo,
+                }}
+                onDone={cerrarSheet}
+              />
+            ) : editando?.tipo === "pago" ? (
               <PagoForm
                 key={editando.item.id}
                 perros={perros}
@@ -455,6 +569,37 @@ function FilaEgreso({ item, onEdit }: { item: EgresoItem; onEdit: (item: EgresoI
         <p className="shrink-0 font-semibold text-brand-egreso">{formatMoneda(item.monto)}</p>
       </button>
       <BotonEliminar tipo="egreso" id={item.id} />
+    </li>
+  );
+}
+
+function FilaPendiente({ item, onCobrar }: { item: PendienteItem; onCobrar: () => void }) {
+  return (
+    <li className="space-y-2 rounded-lg border border-neutral-border border-l-4 border-l-amber-400 bg-white p-3">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-neutral-ink">{item.perroNombre}</p>
+          <p className="truncate text-xs text-neutral-muted">
+            {item.servicio ? `${SERVICIO_LABEL[item.servicio]} · ` : ""}
+            {item.fecha ? formatFecha(item.fecha) : "Sin fecha"}
+            {item.clienteNombre ? ` · ${item.clienteNombre}` : ""}
+          </p>
+          <p className="mt-1 text-xs text-neutral-muted">
+            Acordado {formatMoneda(item.precioAcordado)} · Pagado {formatMoneda(item.pagado)}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-xs text-neutral-muted">Saldo</p>
+          <p className="font-semibold tabular-nums text-amber-600">{formatMoneda(item.saldo)}</p>
+        </div>
+      </div>
+      <Button
+        type="button"
+        onClick={onCobrar}
+        className="h-10 w-full bg-amber-500 text-sm hover:bg-amber-500/90"
+      >
+        Registrar pago
+      </Button>
     </li>
   );
 }

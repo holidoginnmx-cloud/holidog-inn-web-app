@@ -54,15 +54,3 @@ export function fechaDeTimestamp(ts: string | null | undefined): string | null {
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
 }
-
-/**
- * timestamp ISO → hora "HH:MM" (UTC). null si no hay valor o si la hora es el
- * "mediodía centinela" (12:00) que usamos cuando no se capturó una hora real.
- */
-export function horaDeTimestamp(ts: string | null | undefined): string | null {
-  if (!ts) return null;
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return null;
-  const hhmm = d.toISOString().slice(11, 16);
-  return hhmm === "12:00" ? null : hhmm;
-}

@@ -6,7 +6,7 @@ import { hoyISO } from "@/lib/date";
 import { typeToServicio, statusToEstado } from "@/lib/labels";
 import type { Enums } from "@/lib/supabase/types";
 import type { ResvLite } from "@/lib/ocupacion";
-import { fechaDeTimestamp, horaDeTimestamp } from "@/lib/reservacion";
+import { fechaDeTimestamp } from "@/lib/reservacion";
 import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
 
 export const dynamic = "force-dynamic";
@@ -55,8 +55,6 @@ export default async function ReservacionesPage() {
       estado: statusToEstado(r.status as Enums<"ReservationStatus">),
       precioAcordado: r.totalAmount ?? 0,
       pagado: sumarPagosEn(r.payments),
-      horaCheckIn: horaDeTimestamp(r.checkIn),
-      horaCheckOut: horaDeTimestamp(r.checkOut),
     };
   });
 

@@ -15,9 +15,6 @@ export type ResvLite = {
   // Total ya pagado (SUM de pagos). Junto con precioAcordado deriva el estado
   // de pago (Pagada / Pendiente). Opcional: los formularios no lo arman.
   pagado?: number;
-  // Hora de check-in / check-out ("HH:MM[:SS]"). Opcionales.
-  horaCheckIn?: string | null;
-  horaCheckOut?: string | null;
 };
 
 // Reservaciones que ocupan un lugar (cupo) en `fechaISO`.

@@ -2,26 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { type ActionResult, ERROR_GENERICO, validar, withSupabase, type DB } from "@/lib/actions";
-import { reservacionInputSchema, horasReservacionSchema } from "@/lib/validations/reservacion";
+import { reservacionInputSchema } from "@/lib/validations/reservacion";
 import { servicioToType, estadoToStatus } from "@/lib/labels";
 import { timestampDeFecha } from "@/lib/reservacion";
 
 type ReservacionData = ReturnType<typeof reservacionInputSchema.parse>;
 
-// Combina una fecha "YYYY-MM-DD" con una hora "HH:MM" (UTC) en un timestamp ISO.
-// Si no hay hora, ancla a mediodía UTC (timestampDeFecha) para no correr el día.
-// DECISIÓN: la hora se guarda dentro del propio timestamp de checkIn/checkOut
-// (reservations no tiene columnas de hora separadas como el legacy).
-function tsConHora(fecha: string | null | undefined, hora: string | null | undefined): string | null {
-  if (!fecha) return null;
-  if (!hora) return timestampDeFecha(fecha);
-  const soloFecha = fecha.slice(0, 10);
-  return `${soloFecha}T${hora.slice(0, 5)}:00.000Z`;
-}
-
 // Construye el row (columnas inglesas) para insert/update de `reservations`.
 // STAY: usa checkIn/checkOut. ESTETICA/GUARDERIA: van en appointmentAt (de un
-// día) y checkIn/checkOut quedan null.
+// día) y checkIn/checkOut quedan null. Los timestamps se anclan a mediodía UTC
+// (timestampDeFecha) para no correr el día por zona horaria; no guardamos hora.
 function aRow(data: ReservacionData, ownerId: string) {
   const tipo = servicioToType(data.servicio);
   const esStay = data.servicio === "HOTEL";
@@ -29,9 +19,9 @@ function aRow(data: ReservacionData, ownerId: string) {
     petId: data.perro_id,
     ownerId,
     reservationType: tipo,
-    checkIn: esStay ? tsConHora(data.fecha_inicio, data.hora_check_in) : null,
-    checkOut: esStay ? tsConHora(data.fecha_fin, data.hora_check_out) : null,
-    appointmentAt: esStay ? null : tsConHora(data.fecha_inicio, data.hora_check_in),
+    checkIn: esStay ? timestampDeFecha(data.fecha_inicio) : null,
+    checkOut: esStay ? timestampDeFecha(data.fecha_fin) : null,
+    appointmentAt: esStay ? null : timestampDeFecha(data.fecha_inicio),
     totalAmount: data.precio_acordado ?? 0,
     depositAgreed: data.anticipo_acordado ?? null,
     status: estadoToStatus(data.estado),
@@ -124,49 +114,6 @@ export async function actualizarReservacion(
 
     revalidatePath("/reservaciones");
     revalidatePath(`/perros/${v.data.perro_id}`);
-    return { ok: true, data: { id } };
-  });
-}
-
-// Editor rápido del calendario: actualiza solo la hora de check-in/out.
-// Recombina la hora con la fecha vigente del timestamp (la hora se guarda dentro
-// del propio checkIn/checkOut). `perroId` es opcional; si llega, revalida la
-// ficha del perro.
-export async function actualizarHorasReservacion(
-  id: string,
-  input: unknown,
-  perroId?: string,
-): Promise<ActionResult<{ id: string }>> {
-  const v = validar(horasReservacionSchema, input);
-  if (!v.ok) return v;
-
-  return withSupabase("reservaciones", async (supabase) => {
-    // Necesitamos la fecha vigente de checkIn/checkOut para recombinarla con la
-    // nueva hora sin perder el día.
-    const { data: cur, error: curErr } = await supabase
-      .from("reservations")
-      .select("checkIn, checkOut")
-      .eq("id", id)
-      .maybeSingle();
-    if (curErr || !cur) {
-      console.error("[reservaciones] Error al cargar horas:", curErr);
-      return { ok: false, error: ERROR_GENERICO };
-    }
-
-    const patch: { checkIn?: string | null; checkOut?: string | null; updatedAt: string } = {
-      updatedAt: new Date().toISOString(),
-    };
-    if (cur.checkIn) patch.checkIn = tsConHora(cur.checkIn, v.data.hora_check_in);
-    if (cur.checkOut) patch.checkOut = tsConHora(cur.checkOut, v.data.hora_check_out);
-
-    const { error } = await supabase.from("reservations").update(patch).eq("id", id);
-    if (error) {
-      console.error("[reservaciones] Error al actualizar horas:", error);
-      return { ok: false, error: ERROR_GENERICO };
-    }
-
-    revalidatePath("/reservaciones");
-    if (perroId) revalidatePath(`/perros/${perroId}`);
     return { ok: true, data: { id } };
   });
 }

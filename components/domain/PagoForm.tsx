@@ -43,6 +43,16 @@ export type PagoEditable = {
   notas: string | null;
 };
 
+// Abono a una reservación con saldo pendiente: perro y reservación quedan
+// fijos (no se eligen); el monto arranca igual al saldo por cobrar.
+export type PagoPrefill = {
+  perroId: string;
+  perroNombre: string;
+  reservacionId: string;
+  servicio: Servicio | null;
+  saldo: number;
+};
+
 const SERVICIO_PILLS = SERVICIO_OPTIONS.map((s) => ({ value: s, label: SERVICIO_LABEL[s] }));
 const TIPO_PILLS = PAGO_TIPO_OPTIONS.map((t) => ({ value: t, label: PAGO_TIPO_LABEL[t] }));
 
@@ -52,21 +62,26 @@ const selectClass =
 export function PagoForm({
   perros,
   editar,
+  prefill,
   onDone,
 }: {
   perros: ComboOption[];
   editar?: PagoEditable;
+  prefill?: PagoPrefill;
   onDone?: () => void;
 }) {
   const router = useRouter();
   const esEdicion = editar != null;
+  const esPrefill = !esEdicion && prefill != null;
 
   const [perroId, setPerroId] = useState<string | null>(null);
   const [reservaciones, setReservaciones] = useState<ReservacionAbierta[]>([]);
   const [loadingResv, setLoadingResv] = useState(false);
   const [reservacionId, setReservacionId] = useState("nueva");
   const [servicio, setServicio] = useState<string | null>(null);
-  const [monto, setMonto] = useState(editar ? String(editar.monto) : "");
+  const [monto, setMonto] = useState(
+    editar ? String(editar.monto) : prefill ? String(prefill.saldo) : "",
+  );
   const [tipo, setTipo] = useState<string>(editar?.tipo ?? "ABONO");
   const [metodoPago, setMetodoPago] = useState<string>(editar?.metodoPago ?? "CASH");
   const [fecha, setFecha] = useState(editar?.fecha ?? hoyISO());
@@ -118,6 +133,29 @@ export function PagoForm({
       return;
     }
 
+    if (esPrefill) {
+      setPending(true);
+      const res = await crearPago({
+        perro_id: prefill.perroId,
+        reservacion_id: prefill.reservacionId,
+        servicio: null,
+        monto,
+        tipo,
+        metodo_pago: metodoPago,
+        fecha,
+        notas,
+      });
+      setPending(false);
+      if (res.ok) {
+        toast.success("Pago registrado");
+        onDone?.();
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+      return;
+    }
+
     if (!perroId) {
       toast.error("Selecciona un perro");
       return;
@@ -147,12 +185,20 @@ export function PagoForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      {esEdicion ? (
+      {esEdicion || esPrefill ? (
         <div className="rounded-md border border-neutral-border bg-neutral-sand/40 px-3 py-2 text-sm">
           <span className="text-neutral-muted">Perro: </span>
-          <span className="font-medium text-neutral-ink">{editar.perroNombre ?? "Sin perro"}</span>
-          {editar.servicio && (
-            <span className="text-neutral-muted"> · {SERVICIO_LABEL[editar.servicio]}</span>
+          <span className="font-medium text-neutral-ink">
+            {(editar?.perroNombre ?? prefill?.perroNombre) || "Sin perro"}
+          </span>
+          {(editar?.servicio ?? prefill?.servicio) && (
+            <span className="text-neutral-muted">
+              {" "}
+              · {SERVICIO_LABEL[(editar?.servicio ?? prefill?.servicio) as Servicio]}
+            </span>
+          )}
+          {esPrefill && (
+            <span className="text-neutral-muted"> · saldo {formatMoneda(prefill!.saldo)}</span>
           )}
         </div>
       ) : (
@@ -277,7 +323,7 @@ export function PagoForm({
         className="h-12 w-full bg-brand-ingreso text-base hover:bg-brand-ingreso/90"
       >
         {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
-        {esEdicion ? "Guardar cambios" : "Guardar ingreso"}
+        {esEdicion ? "Guardar cambios" : esPrefill ? "Registrar pago" : "Guardar ingreso"}
       </Button>
     </form>
   );

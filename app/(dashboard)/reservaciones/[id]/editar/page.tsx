@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ReservacionForm, type ReservacionInitial } from "@/components/domain/ReservacionForm";
 import { EliminarReservacionButton } from "@/components/domain/EliminarReservacionButton";
 import { PagoBadge } from "@/components/domain/PagoBadge";
-import { fechaDeTimestamp, horaDeTimestamp } from "@/lib/reservacion";
+import { fechaDeTimestamp } from "@/lib/reservacion";
 import { typeToServicio, statusToEstado } from "@/lib/labels";
 import type { Enums } from "@/lib/supabase/types";
 import { formatMoneda } from "@/lib/utils";
@@ -52,8 +52,6 @@ export default async function EditarReservacionPage({
     servicio: typeToServicio(tipo),
     fecha_inicio: fechaDeTimestamp(inicioTs) ?? "",
     fecha_fin: fechaDeTimestamp(finTs) ?? "",
-    hora_check_in: horaDeTimestamp(r.checkIn) ?? "",
-    hora_check_out: horaDeTimestamp(r.checkOut) ?? "",
     precio_acordado: String(precioAcordado),
     anticipo_acordado: r.depositAgreed != null ? String(r.depositAgreed) : "",
     estado: statusToEstado(r.status as Enums<"ReservationStatus">),

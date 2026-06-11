@@ -12,7 +12,9 @@ import {
   MovimientosHub,
   type IngresoItem,
   type EgresoItem,
+  type PendienteItem,
 } from "@/components/domain/MovimientosHub";
+import { sumarPagos, estadoPago } from "@/lib/reservacion";
 import { MesSelector } from "@/components/domain/dashboard/MesSelector";
 import type { ComboOption } from "@/components/domain/Combobox";
 
@@ -50,7 +52,8 @@ export default async function MovimientosPage({
   const desde = primerDia(actual);
   const hasta = primerDia(mesSiguiente(actual));
 
-  const [pagosRes, egresosRes, ingMesRes, egrMesRes, perrosRes, catsRes] = await Promise.all([
+  const [pagosRes, egresosRes, ingMesRes, egrMesRes, perrosRes, catsRes, pendientesRes] =
+    await Promise.all([
     supabase
       .from("payments")
       .select(
@@ -86,6 +89,15 @@ export default async function MovimientosPage({
       .select("id, nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)")
       .order("name"),
     supabase.from("expenses").select("categoria:category"),
+    // Pendientes de cobro: global, sin filtro de mes. El saldo se deriva en JS.
+    supabase
+      .from("reservations")
+      .select(
+        "id, petId, reservationType, checkIn, appointmentAt, totalAmount, pet:pets(nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)), payments(monto:amount)",
+      )
+      .neq("status", "CANCELLED")
+      .gt("totalAmount", 0)
+      .order("checkIn", { ascending: true, nullsFirst: false }),
   ]);
 
   // Servicio y nombre del perro de cada pago: se resuelven por reservationId
@@ -137,6 +149,28 @@ export default async function MovimientosPage({
     return { value: p.id, label: p.nombre, sublabel: cli?.nombre };
   });
 
+  const pendientes: PendienteItem[] = (pendientesRes.data ?? [])
+    .map((r): PendienteItem | null => {
+      const pagado = sumarPagos(r.payments);
+      const ep = estadoPago(r.totalAmount, pagado);
+      if (ep.key !== "PENDIENTE") return null;
+      const pet = one(r.pet) as { nombre: string; cliente: unknown } | null;
+      const cli = one(pet?.cliente) as { nombre: string } | null;
+      return {
+        reservacionId: r.id,
+        perroId: r.petId,
+        perroNombre: pet?.nombre ?? "Sin perro",
+        clienteNombre: cli?.nombre ?? null,
+        servicio: typeToServicio(r.reservationType),
+        fecha: (r.checkIn ?? r.appointmentAt ?? "").slice(0, 10),
+        precioAcordado: r.totalAmount,
+        pagado,
+        saldo: ep.saldo,
+      };
+    })
+    .filter((p): p is PendienteItem => p !== null)
+    .sort((a, b) => b.saldo - a.saldo);
+
   // Categorías: conocidas (CLAUDE.md) + distintas reales de la BD, ordenadas.
   const categorias = Array.from(
     new Set<string>([
@@ -152,6 +186,7 @@ export default async function MovimientosPage({
       <MovimientosHub
         ingresos={ingresos}
         egresos={egresos}
+        pendientes={pendientes}
         totalIngresosMes={ingMesRes.data?.total_ingresos ?? 0}
         totalEgresosMes={egrMesRes.data?.total_egresos ?? 0}
         mesLabel={mesLabel}

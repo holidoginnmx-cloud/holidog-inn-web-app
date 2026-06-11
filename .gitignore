@@ -49,3 +49,9 @@ next-env.d.ts
 /data/
 *.xlsx
 ~$*
+
+# Expo (artefacto, no usado por la web)
+.expo/
+
+# Supabase CLI temp
+supabase/.temp/
