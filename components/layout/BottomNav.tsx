@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Dog, Calendar, Wallet, Settings, type LucideIcon } from "lucide-react";
+import {
+  Home,
+  Dog,
+  Calendar,
+  ShoppingBag,
+  Wallet,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -15,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/perros", label: "Perros", icon: Dog },
   { href: "/reservaciones", label: "Reservas", icon: Calendar },
+  { href: "/tienda", label: "Tienda", icon: ShoppingBag },
   { href: "/movimientos", label: "$ Mov.", icon: Wallet },
   { href: "/config", label: "Config", icon: Settings },
 ];

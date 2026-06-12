@@ -22,6 +22,13 @@ const nextConfig: NextConfig = {
         hostname: "res.cloudinary.com",
         pathname: "/**",
       },
+      // Imágenes de productos migradas desde Shopify (tienda). Se sirven desde el
+      // CDN de Shopify hasta que se migren al bucket 'productos' de Supabase (F6).
+      {
+        protocol: "https" as const,
+        hostname: "cdn.shopify.com",
+        pathname: "/**",
+      },
       // Si NEXT_PUBLIC_SUPABASE_URL existe, restringe al host concreto.
       ...(supabaseHostname
         ? [
