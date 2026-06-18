@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,7 +14,10 @@ import {
   ChevronDown,
   Clock,
   CheckCircle2,
+  Search,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -118,6 +121,42 @@ function agruparPorSemana<T extends { fecha: string; monto: number }>(
     .map(([semana, items]) => ({ semana, items }));
 }
 
+// Búsqueda en memoria: un término vacío deja pasar todo. Cada predicado revisa los
+// campos visibles de su fila más las etiquetas legibles (servicio/tipo) para que el
+// usuario pueda buscar tanto "firulais" como "hotel" o "transferencia".
+function incluye(valor: string | null | undefined, q: string) {
+  return !!valor && valor.toLowerCase().includes(q);
+}
+
+function coincideIngreso(item: IngresoItem, q: string) {
+  if (!q) return true;
+  return (
+    incluye(item.perroNombre, q) ||
+    incluye(item.descripcion, q) ||
+    incluye(item.servicio ? SERVICIO_LABEL[item.servicio] : null, q) ||
+    incluye(PAGO_TIPO_LABEL[item.tipo], q)
+  );
+}
+
+function coincideEgreso(item: EgresoItem, q: string) {
+  if (!q) return true;
+  return (
+    incluye(item.descripcion, q) ||
+    incluye(item.categoria, q) ||
+    incluye(item.notas, q) ||
+    incluye(TIPO_COSTO_LABEL[item.tipo_costo], q)
+  );
+}
+
+function coincidePendiente(item: PendienteItem, q: string) {
+  if (!q) return true;
+  return (
+    incluye(item.perroNombre, q) ||
+    incluye(item.clienteNombre, q) ||
+    incluye(item.servicio ? SERVICIO_LABEL[item.servicio] : null, q)
+  );
+}
+
 export function MovimientosHub({
   ingresos,
   egresos,
@@ -145,12 +184,48 @@ export function MovimientosHub({
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState<Editando>(null);
   const [cobrando, setCobrando] = useState<PendienteItem | null>(null);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const esIngresos = tab === "ingresos";
   const esEgresos = tab === "egresos";
   const esPendientes = tab === "pendientes";
-  const lista = esIngresos ? ingresos : egresos;
+
+  // Atajo: "/" enfoca la búsqueda (desktop).
+  useHotkey("/", () => inputRef.current?.focus());
+
+  const q = query.trim().toLowerCase();
+  const hayQuery = q.length > 0;
+
+  const ingresosFiltrados = useMemo(
+    () => ingresos.filter((it) => coincideIngreso(it, q)),
+    [ingresos, q],
+  );
+  const egresosFiltrados = useMemo(
+    () => egresos.filter((it) => coincideEgreso(it, q)),
+    [egresos, q],
+  );
+  const pendientesFiltrados = useMemo(
+    () => pendientes.filter((it) => coincidePendiente(it, q)),
+    [pendientes, q],
+  );
+
+  const lista = esIngresos ? ingresosFiltrados : egresosFiltrados;
 
   const totalPendiente = pendientes.reduce((s, p) => s + p.saldo, 0);
+
+  // Con búsqueda activa el total grande refleja la suma de los resultados visibles;
+  // sin búsqueda muestra el total del mes que ya calculó el servidor.
+  const totalMostrado = !hayQuery
+    ? esIngresos
+      ? totalIngresosMes
+      : esEgresos
+        ? totalEgresosMes
+        : totalPendiente
+    : esIngresos
+      ? ingresosFiltrados.reduce((s, it) => s + it.monto, 0)
+      : esEgresos
+        ? egresosFiltrados.reduce((s, it) => s + it.monto, 0)
+        : pendientesFiltrados.reduce((s, it) => s + it.saldo, 0);
 
   function abrirNuevo() {
     setEditando(null);
@@ -237,7 +312,7 @@ export function MovimientosHub({
 
       <div className="rounded-xl border border-neutral-border bg-white p-4">
         <p className="text-xs text-neutral-muted">
-          {esPendientes ? "Total pendiente" : "Total del mes"}
+          {hayQuery ? "Total filtrado" : esPendientes ? "Total pendiente" : "Total del mes"}
         </p>
         <p
           className={cn(
@@ -249,10 +324,47 @@ export function MovimientosHub({
                 : "text-amber-600",
           )}
         >
-          {formatMoneda(
-            esIngresos ? totalIngresosMes : esEgresos ? totalEgresosMes : totalPendiente,
-          )}
+          {formatMoneda(totalMostrado)}
         </p>
+      </div>
+
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-muted"
+          aria-hidden
+        />
+        <Input
+          ref={inputRef}
+          type="search"
+          inputMode="search"
+          placeholder={
+            esIngresos
+              ? "Buscar ingreso (perro, servicio, tipo…)"
+              : esEgresos
+                ? "Buscar egreso (descripción, categoría…)"
+                : "Buscar pendiente (perro, cliente…)"
+          }
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="bg-white px-9"
+          aria-label="Buscar movimientos"
+        />
+        {hayQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            aria-label="Limpiar búsqueda"
+            className={cn(
+              "absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-neutral-muted transition-colors active:bg-neutral-sand",
+              focusRing,
+            )}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        )}
       </div>
 
       {esPendientes ? (
@@ -260,7 +372,8 @@ export function MovimientosHub({
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-neutral-muted">Pagos por cobrar</h2>
             <span className="text-xs text-neutral-muted">
-              {pendientes.length} {pendientes.length === 1 ? "reservación" : "reservaciones"}
+              {pendientesFiltrados.length}{" "}
+              {pendientesFiltrados.length === 1 ? "reservación" : "reservaciones"}
             </span>
           </div>
           {pendientes.length === 0 ? (
@@ -269,9 +382,13 @@ export function MovimientosHub({
               title="Sin pagos pendientes"
               description="Todas las reservaciones están al corriente."
             />
+          ) : pendientesFiltrados.length === 0 ? (
+            <p className="py-12 text-center text-sm text-neutral-muted">
+              Ningún pendiente coincide con la búsqueda.
+            </p>
           ) : (
             <ul className="space-y-2">
-              {pendientes.map((p) => (
+              {pendientesFiltrados.map((p) => (
                 <FilaPendiente
                   key={p.reservacionId}
                   item={p}
@@ -295,8 +412,9 @@ export function MovimientosHub({
           </div>
           <ListaPorSemana
             tab={tab}
-            ingresos={ingresos}
-            egresos={egresos}
+            ingresos={ingresosFiltrados}
+            egresos={egresosFiltrados}
+            hayQuery={hayQuery}
             anio={anio}
             mes={mes}
             onEditIngreso={(item) => {
@@ -444,6 +562,7 @@ function ListaPorSemana({
   tab,
   ingresos,
   egresos,
+  hayQuery,
   anio,
   mes,
   onEditIngreso,
@@ -452,24 +571,32 @@ function ListaPorSemana({
   tab: Tab;
   ingresos: IngresoItem[];
   egresos: EgresoItem[];
+  hayQuery: boolean;
   anio: number;
   mes: number;
   onEditIngreso: (item: IngresoItem) => void;
   onEditEgreso: (item: EgresoItem) => void;
 }) {
   const esIngresos = tab === "ingresos";
+  const vacia = esIngresos ? ingresos.length === 0 : egresos.length === 0;
 
-  if (esIngresos && ingresos.length === 0) {
-    return (
+  if (vacia) {
+    // Con búsqueda activa la lista puede llegar vacía por el filtro, no porque no
+    // haya movimientos en el mes: distinguimos el mensaje para no sugerir capturar.
+    if (hayQuery) {
+      return (
+        <p className="py-12 text-center text-sm text-neutral-muted">
+          Ningún movimiento coincide con la búsqueda.
+        </p>
+      );
+    }
+    return esIngresos ? (
       <EmptyState
         icon={Wallet}
         title="Sin ingresos este mes"
         description="Toca + (o la tecla N) para registrar un pago."
       />
-    );
-  }
-  if (!esIngresos && egresos.length === 0) {
-    return (
+    ) : (
       <EmptyState
         icon={Receipt}
         title="Sin egresos este mes"
