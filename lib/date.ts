@@ -137,7 +137,10 @@ function primerLunesDelMes(anio: number, mesIndex: number): number {
 // domingo; la semana 1 son los días antes del primer lunes (ej. mayo 2026:
 // sem 1 = 1-3, sem 2 = 4-10, …). Devuelve 1..6.
 export function semanaDelMes(iso: string): number {
-  const d = new Date(`${iso}T00:00:00`);
+  // `iso` puede llegar como "YYYY-MM-DD" (egresos) o como timestamptz ISO
+  // completo (ingresos: paidAt). Recortamos a la parte de fecha para evitar
+  // un Date inválido —que devolvería NaN y rompía el encabezado "Semana NaN"—.
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
   const day = d.getDate();
   const primerLunes = primerLunesDelMes(d.getFullYear(), d.getMonth());
   if (day < primerLunes) return 1;
