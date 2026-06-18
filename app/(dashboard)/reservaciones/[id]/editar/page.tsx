@@ -7,6 +7,7 @@ import { EliminarReservacionButton } from "@/components/domain/EliminarReservaci
 import { PagoBadge } from "@/components/domain/PagoBadge";
 import { fechaDeTimestamp } from "@/lib/reservacion";
 import { typeToServicio, statusToEstado } from "@/lib/labels";
+import { derivarEstetica, RESV_ADDON_SELECT } from "@/lib/estetica";
 import type { Enums } from "@/lib/supabase/types";
 import { formatMoneda } from "@/lib/utils";
 import { cargarDatosFormReservacion } from "../../data";
@@ -24,7 +25,7 @@ export default async function EditarReservacionPage({
   const { data: r, error } = await supabase
     .from("reservations")
     .select(
-      "id, petId, reservationType, checkIn, checkOut, appointmentAt, totalAmount, depositAgreed, status, notes",
+      `id, petId, reservationType, checkIn, checkOut, appointmentAt, totalAmount, depositAgreed, status, notes, ${RESV_ADDON_SELECT}`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -46,6 +47,7 @@ export default async function EditarReservacionPage({
   const inicioTs = tipo === "STAY" ? r.checkIn : r.appointmentAt;
   const finTs = tipo === "STAY" ? r.checkOut : null;
   const precioAcordado = r.totalAmount ?? 0;
+  const estetica = derivarEstetica(tipo, r.reservation_addons);
 
   const initial: ReservacionInitial = {
     perroId: r.petId,
@@ -56,6 +58,9 @@ export default async function EditarReservacionPage({
     anticipo_acordado: r.depositAgreed != null ? String(r.depositAgreed) : "",
     estado: statusToEstado(r.status as Enums<"ReservationStatus">),
     notas: r.notes ?? "",
+    incluye_bano: estetica.incluyeBano,
+    incluye_corte: estetica.incluyeCorte,
+    incluye_deslanado: estetica.incluyeDeslanado,
   };
 
   return (

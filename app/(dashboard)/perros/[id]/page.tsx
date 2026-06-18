@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { TallaBadge } from "@/components/domain/TallaBadge";
 import { PagoBadge } from "@/components/domain/PagoBadge";
+import { EsteticaBadges } from "@/components/domain/EsteticaBadges";
+import { derivarEstetica, RESV_ADDON_SELECT } from "@/lib/estetica";
 import { sumarPagos } from "@/lib/reservacion";
 import { SEXO_LABEL, inicial, sexToSexo, type PetSize, type Sexo } from "@/lib/perro";
 import { typeToServicio, statusToEstado, type ReservationType, type ReservationStatus } from "@/lib/labels";
@@ -58,7 +60,7 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
   const { data: reservacionesRaw } = await supabase
     .from("reservations")
     .select(
-      "id, servicio:reservationType, fecha_inicio:checkIn, fecha_fin:checkOut, estado:status, precio_acordado:totalAmount, pagos:payments(monto:amount)",
+      `id, servicio:reservationType, fecha_inicio:checkIn, fecha_fin:checkOut, estado:status, precio_acordado:totalAmount, pagos:payments(monto:amount), ${RESV_ADDON_SELECT}`,
     )
     .eq("petId", id)
     .order("checkIn", { ascending: false })
@@ -73,6 +75,7 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
     estado: statusToEstado(r.estado as ReservationStatus),
     precio_acordado: r.precio_acordado,
     pagos: r.pagos,
+    ...derivarEstetica(r.servicio as ReservationType, r.reservation_addons),
   }));
 
   // cartilla_vigente derivado de cartillaStatus. Ya no hay fecha de vencimiento
@@ -233,6 +236,12 @@ export default async function PerroFichaPage({ params }: { params: Promise<{ id:
                     {formatFecha(r.fecha_inicio)}
                     {r.fecha_fin ? ` – ${formatFecha(r.fecha_fin)}` : ""}
                   </p>
+                  <EsteticaBadges
+                    incluyeBano={r.incluyeBano}
+                    incluyeCorte={r.incluyeCorte}
+                    incluyeDeslanado={r.incluyeDeslanado}
+                    className="mt-1"
+                  />
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
                   <p className="text-sm font-medium text-brand-ingreso">

@@ -234,13 +234,96 @@ export async function getReservacionesDelPerro(
 // --------------------------------------------------------------------------
 // Eliminar pago / egreso.
 // --------------------------------------------------------------------------
+
+// Reservación "stub" auto-creada por la captura rápida (crearPago con
+// reservacion_id === "nueva"): status CONFIRMED, total = el pago, sin estancia
+// real (STAY sin checkOut / no-STAY sin checkIn) ni datos de booking. Si al
+// borrar su único pago se quedara sin pagos, debe limpiarse para no aparecer
+// como reservación "fantasma" en Pendientes. Una reserva real (con checkOut,
+// notas, anticipo acordado, cuarto/staff, etc.) NUNCA cumple estos criterios,
+// así que jamás la borramos por error.
+function esStubCapturaRapida(
+  r: {
+    reservationType: string;
+    status: string;
+    totalAmount: number;
+    checkIn: string | null;
+    checkOut: string | null;
+    notes: string | null;
+    medicationNotes: string | null;
+    depositAgreed: number | null;
+    depositDeadline: string | null;
+    roomId: string | null;
+    staffId: string | null;
+    groupId: string | null;
+    totalDays: number | null;
+    originLegacy: boolean;
+  },
+  montoPago: number | null,
+): boolean {
+  if (r.status !== "CONFIRMED" || r.originLegacy) return false;
+  const sinDatosReales =
+    !r.notes &&
+    !r.medicationNotes &&
+    r.depositAgreed == null &&
+    !r.depositDeadline &&
+    !r.roomId &&
+    !r.staffId &&
+    !r.groupId &&
+    r.totalDays == null;
+  if (!sinDatosReales) return false;
+  // STAY real siempre tiene checkOut; no-STAY real nunca tiene checkIn.
+  if (r.reservationType === "STAY" ? r.checkOut != null : r.checkIn != null) return false;
+  // El total del stub se fijó exactamente igual al pago capturado.
+  if (montoPago != null && r.totalAmount !== montoPago) return false;
+  return true;
+}
+
 export async function eliminarPago(id: string): Promise<ActionResult<null>> {
   return withSupabase("movimientos", async (supabase) => {
+    // Guardamos la reservación y el monto antes de borrar, para decidir luego
+    // si quedó huérfana una reservación-stub que haya que limpiar.
+    const { data: pago } = await supabase
+      .from("payments")
+      .select("reservationId, amount")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await supabase.from("payments").delete().eq("id", id);
     if (error) {
       console.error("[movimientos] Error al eliminar pago:", error);
       return { ok: false, error: ERROR_GENERICO };
     }
+
+    // Si la reservación se queda sin pagos y es un stub de captura rápida, la
+    // borramos para que no aparezca como pendiente fantasma. El pago ya se borró
+    // con éxito; si la limpieza falla, no revertimos (solo logueamos).
+    const reservationId = pago?.reservationId ?? null;
+    if (reservationId) {
+      const { count } = await supabase
+        .from("payments")
+        .select("id", { count: "exact", head: true })
+        .eq("reservationId", reservationId);
+      if ((count ?? 0) === 0) {
+        const { data: resv } = await supabase
+          .from("reservations")
+          .select(
+            "reservationType, status, totalAmount, checkIn, checkOut, notes, medicationNotes, depositAgreed, depositDeadline, roomId, staffId, groupId, totalDays, originLegacy",
+          )
+          .eq("id", reservationId)
+          .maybeSingle();
+        if (resv && esStubCapturaRapida(resv, pago?.amount ?? null)) {
+          const { error: delResvErr } = await supabase
+            .from("reservations")
+            .delete()
+            .eq("id", reservationId);
+          if (delResvErr) {
+            console.error("[movimientos] No se pudo limpiar reservación stub:", delResvErr);
+          }
+        }
+      }
+    }
+
     revalidatePath("/movimientos");
     revalidatePath("/");
     return { ok: true, data: null };

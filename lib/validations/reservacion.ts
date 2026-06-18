@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   opcional,
+  checkbox,
   fechaRequerida,
   fechaOpcional,
   montoNoNegativo,
@@ -20,6 +21,10 @@ export const reservacionInputSchema = z
     anticipo_acordado: montoOpcionalNoNegativo,
     estado: z.enum(ESTADO_OPTIONS),
     notas: opcional(z.string().max(1000)),
+    // Servicios de estética incluidos en la reservación (independientes entre sí).
+    incluye_bano: checkbox,
+    incluye_corte: checkbox,
+    incluye_deslanado: checkbox,
   })
   .refine((d) => d.servicio !== "HOTEL" || d.fecha_fin != null, {
     message: "El hotel requiere una fecha de fin",

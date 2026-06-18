@@ -357,9 +357,58 @@ export async function obtenerDetallePerro(perroId: string): Promise<ActionResult
   });
 }
 
-// Elimina un perro (cascada borra sus reservaciones y pagos por FK).
+// Elimina un perro y todo lo que cuelga de él. La DB compartida con la app móvil
+// NO tiene ON DELETE CASCADE en estas FK, así que borramos a mano y en orden:
+// primero los hijos de sus reservaciones, luego las reservaciones, luego los hijos
+// directos del perro y al final el perro. Borrar de una tabla vacía es un no-op.
 export async function eliminarPerro(perroId: string): Promise<ActionResult<null>> {
   return withSupabase("perros", async (supabase) => {
+    const { data: resvs, error: eRes } = await supabase
+      .from("reservations")
+      .select("id")
+      .eq("petId", perroId);
+    if (eRes) {
+      console.error("[perros] Error al leer reservaciones del perro:", eRes);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    const resIds = (resvs ?? []).map((r) => r.id);
+
+    const pasos: { etiqueta: string; ejecutar: PromiseLike<{ error: { message: string } | null }> }[] = [];
+
+    // 1) Hijos de las reservaciones del perro (addons referencian payments → primero).
+    if (resIds.length > 0) {
+      pasos.push(
+        { etiqueta: "reservation_addons", ejecutar: supabase.from("reservation_addons").delete().in("reservationId", resIds) },
+        { etiqueta: "payments", ejecutar: supabase.from("payments").delete().in("reservationId", resIds) },
+        { etiqueta: "daily_checklists", ejecutar: supabase.from("daily_checklists").delete().in("reservationId", resIds) },
+        { etiqueta: "reviews", ejecutar: supabase.from("reviews").delete().in("reservationId", resIds) },
+        { etiqueta: "staff_alerts(resv)", ejecutar: supabase.from("staff_alerts").delete().in("reservationId", resIds) },
+        { etiqueta: "stay_updates(resv)", ejecutar: supabase.from("stay_updates").delete().in("reservationId", resIds) },
+        { etiqueta: "reservation_change_requests", ejecutar: supabase.from("reservation_change_requests").delete().in("reservationId", resIds) },
+      );
+    }
+
+    // 2) Las reservaciones.
+    pasos.push({ etiqueta: "reservations", ejecutar: supabase.from("reservations").delete().eq("petId", perroId) });
+
+    // 3) Hijos directos del perro.
+    pasos.push(
+      { etiqueta: "dewormings", ejecutar: supabase.from("dewormings").delete().eq("petId", perroId) },
+      { etiqueta: "vaccines", ejecutar: supabase.from("vaccines").delete().eq("petId", perroId) },
+      { etiqueta: "behavior_tags", ejecutar: supabase.from("behavior_tags").delete().eq("petId", perroId) },
+      { etiqueta: "staff_alerts(pet)", ejecutar: supabase.from("staff_alerts").delete().eq("petId", perroId) },
+      { etiqueta: "stay_updates(pet)", ejecutar: supabase.from("stay_updates").delete().eq("petId", perroId) },
+    );
+
+    for (const { etiqueta, ejecutar } of pasos) {
+      const { error } = await ejecutar;
+      if (error) {
+        console.error(`[perros] Error al borrar ${etiqueta}:`, error);
+        return { ok: false, error: ERROR_GENERICO };
+      }
+    }
+
+    // 4) El perro.
     const { error } = await supabase.from("pets").delete().eq("id", perroId);
     if (error) {
       console.error("[perros] Error al eliminar perro:", error);

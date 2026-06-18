@@ -7,6 +7,7 @@ import { typeToServicio, statusToEstado } from "@/lib/labels";
 import type { Enums } from "@/lib/supabase/types";
 import type { ResvLite } from "@/lib/ocupacion";
 import { fechaDeTimestamp } from "@/lib/reservacion";
+import { derivarEstetica, RESV_ADDON_SELECT } from "@/lib/estetica";
 import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function ReservacionesPage() {
     supabase
       .from("reservations")
       .select(
-        "id, petId, reservationType, checkIn, checkOut, appointmentAt, status, totalAmount, pet:pets(nombre:name), payments(amount)",
+        `id, petId, reservationType, checkIn, checkOut, appointmentAt, status, totalAmount, pet:pets(nombre:name), payments(amount), ${RESV_ADDON_SELECT}`,
       )
       // Incluye CHECKED_OUT (históricas migradas del Excel); excluye CANCELLED.
       .in("status", ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"])
@@ -55,6 +56,7 @@ export default async function ReservacionesPage() {
       estado: statusToEstado(r.status as Enums<"ReservationStatus">),
       precioAcordado: r.totalAmount ?? 0,
       pagado: sumarPagosEn(r.payments),
+      ...derivarEstetica(tipo, r.reservation_addons),
     };
   });
 

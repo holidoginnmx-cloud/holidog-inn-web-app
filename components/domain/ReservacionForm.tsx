@@ -31,6 +31,9 @@ export type ReservacionInitial = {
   anticipo_acordado: string;
   estado: string;
   notas: string;
+  incluye_bano: boolean;
+  incluye_corte: boolean;
+  incluye_deslanado: boolean;
 };
 
 type Props = {
@@ -60,11 +63,15 @@ export function ReservacionForm(props: Props) {
   const [estado, setEstado] = useState<string>(init?.estado ?? "RESERVADA");
   const [notas, setNotas] = useState(init?.notas ?? "");
   const [probarf, setProbarf] = useState(false);
+  const [incluyeBano, setIncluyeBano] = useState(init?.incluye_bano ?? false);
+  const [incluyeCorte, setIncluyeCorte] = useState(init?.incluye_corte ?? false);
+  const [incluyeDeslanado, setIncluyeDeslanado] = useState(init?.incluye_deslanado ?? false);
   // En editar no pisamos el precio guardado; en crear arrancamos con la sugerencia.
   const [precioTocado, setPrecioTocado] = useState(props.mode === "editar");
   const [pending, setPending] = useState(false);
 
   const esHotel = servicio === "HOTEL";
+  const esEstetica = servicio === "ESTETICA";
   const excludeId = props.mode === "editar" ? props.reservacionId : undefined;
 
   // Precio sugerido según servicio + peso del perro (hotel: × noches; ProBarf abarata).
@@ -118,6 +125,8 @@ export function ReservacionForm(props: Props) {
       return;
     }
     setPending(true);
+    // En Estética el baño es intrínseco. Corte/deslanado solo cuentan si hay baño.
+    const banoEfectivo = esEstetica || incluyeBano;
     const input = {
       perro_id: perroId,
       servicio,
@@ -127,6 +136,9 @@ export function ReservacionForm(props: Props) {
       anticipo_acordado: anticipo,
       estado,
       notas,
+      incluye_bano: banoEfectivo,
+      incluye_corte: banoEfectivo && incluyeCorte,
+      incluye_deslanado: banoEfectivo && incluyeDeslanado,
     };
     const res =
       props.mode === "crear"
@@ -292,6 +304,57 @@ export function ReservacionForm(props: Props) {
             </p>
           )
         ))}
+
+      <fieldset className="space-y-2">
+        <legend className="mb-1 text-sm font-medium text-neutral-ink">Estética</legend>
+
+        {/* En Estética el baño es el servicio mismo (intrínseco): no se muestra
+            el maestro. En Hotel/Guardería el baño es opcional. */}
+        {!esEstetica && (
+          <label
+            htmlFor="resv-bano"
+            className="flex items-center justify-between rounded-md border border-neutral-border bg-white p-3"
+          >
+            <span className="text-sm font-medium text-neutral-ink">¿Incluye baño?</span>
+            <Switch
+              id="resv-bano"
+              checked={incluyeBano}
+              onCheckedChange={(on) => {
+                setIncluyeBano(on);
+                // Deslanado y corte solo aplican si hay baño.
+                if (!on) {
+                  setIncluyeDeslanado(false);
+                  setIncluyeCorte(false);
+                }
+              }}
+            />
+          </label>
+        )}
+
+        {/* Sub-opciones: solo cuando hay baño (siempre en Estética). */}
+        {(esEstetica || incluyeBano) && (
+          <div className={esEstetica ? "space-y-2" : "space-y-2 pl-3"}>
+            <label
+              htmlFor="resv-deslanado"
+              className="flex items-center justify-between rounded-md border border-neutral-border bg-white p-3"
+            >
+              <span className="text-sm font-medium text-neutral-ink">Deslanado</span>
+              <Switch
+                id="resv-deslanado"
+                checked={incluyeDeslanado}
+                onCheckedChange={setIncluyeDeslanado}
+              />
+            </label>
+            <label
+              htmlFor="resv-corte"
+              className="flex items-center justify-between rounded-md border border-neutral-border bg-white p-3"
+            >
+              <span className="text-sm font-medium text-neutral-ink">Corte</span>
+              <Switch id="resv-corte" checked={incluyeCorte} onCheckedChange={setIncluyeCorte} />
+            </label>
+          </div>
+        )}
+      </fieldset>
 
       <div className="space-y-1.5">
         <Label>Estado</Label>

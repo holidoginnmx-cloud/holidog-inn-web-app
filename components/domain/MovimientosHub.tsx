@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -576,7 +577,10 @@ function FilaEgreso({ item, onEdit }: { item: EgresoItem; onEdit: (item: EgresoI
 function FilaPendiente({ item, onCobrar }: { item: PendienteItem; onCobrar: () => void }) {
   return (
     <li className="space-y-2 rounded-lg border border-neutral-border border-l-4 border-l-amber-400 bg-white p-3">
-      <div className="flex items-start gap-2">
+      <Link
+        href={`/reservaciones/${item.reservacionId}/editar`}
+        className={cn("flex items-start gap-2 rounded-md", focusRing)}
+      >
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-neutral-ink">{item.perroNombre}</p>
           <p className="truncate text-xs text-neutral-muted">
@@ -592,7 +596,7 @@ function FilaPendiente({ item, onCobrar }: { item: PendienteItem; onCobrar: () =
           <p className="text-xs text-neutral-muted">Saldo</p>
           <p className="font-semibold tabular-nums text-amber-600">{formatMoneda(item.saldo)}</p>
         </div>
-      </div>
+      </Link>
       <Button
         type="button"
         onClick={onCobrar}

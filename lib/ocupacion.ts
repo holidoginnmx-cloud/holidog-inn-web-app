@@ -15,6 +15,10 @@ export type ResvLite = {
   // Total ya pagado (SUM de pagos). Junto con precioAcordado deriva el estado
   // de pago (Pagada / Pendiente). Opcional: los formularios no lo arman.
   pagado?: number;
+  // Servicios de estética incluidos. Opcional: solo el historial los muestra.
+  incluyeBano?: boolean;
+  incluyeCorte?: boolean;
+  incluyeDeslanado?: boolean;
 };
 
 // Reservaciones que ocupan un lugar (cupo) en `fechaISO`.

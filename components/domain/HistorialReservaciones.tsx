@@ -8,6 +8,7 @@ import { formatFecha, etiquetaMesAnio } from "@/lib/date";
 import { SERVICIO_LABEL, SERVICIO_OPTIONS } from "@/lib/labels";
 import type { ResvLite } from "@/lib/ocupacion";
 import { PagoBadge } from "./PagoBadge";
+import { EsteticaBadges } from "./EsteticaBadges";
 
 const FILTRO_PILLS = [
   { value: "TODOS", label: "Todos" },
@@ -70,6 +71,12 @@ export function HistorialReservaciones({ reservaciones }: { reservaciones: ResvL
                         ? ` – ${formatFecha(r.fecha_fin)}`
                         : ""}
                     </p>
+                    <EsteticaBadges
+                      incluyeBano={r.incluyeBano}
+                      incluyeCorte={r.incluyeCorte}
+                      incluyeDeslanado={r.incluyeDeslanado}
+                      className="mt-1"
+                    />
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm font-semibold text-neutral-ink">

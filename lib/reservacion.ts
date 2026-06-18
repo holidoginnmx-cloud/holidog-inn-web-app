@@ -13,12 +13,15 @@ export type EstadoPago = {
 };
 
 export function estadoPago(precioAcordado: number, pagado: number): EstadoPago {
-  const saldo = precioAcordado - pagado;
+  // Redondeo a centavos: sumar montos en JS produce errores de punto flotante
+  // (p.ej. 1155.89 + 1155.89 = 2311.7799…), que sin esto clasificarían como
+  // PENDIENTE una reservación realmente saldada (saldo "0.0000…2").
+  const saldo = Math.round((precioAcordado - pagado) * 100) / 100;
   if (precioAcordado <= 0) {
     return { key: "SIN_PRECIO", saldo, label: "Sin precio" };
   }
-  if (pagado >= precioAcordado) {
-    if (pagado > precioAcordado) {
+  if (saldo <= 0) {
+    if (saldo < 0) {
       return { key: "SALDO_FAVOR", saldo, label: "Saldo a favor" };
     }
     return { key: "PAGADA", saldo, label: "Pagada" };
