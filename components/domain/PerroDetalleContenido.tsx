@@ -4,33 +4,16 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
-import {
-  X,
-  Pencil,
-  CalendarPlus,
-  ShieldCheck,
-  ShieldAlert,
-  Loader2,
-} from "lucide-react";
+import { X, Pencil, CalendarPlus, ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TallaBadge } from "./TallaBadge";
 import { EliminarPerroButton } from "./EliminarPerroButton";
 import { SEXO_LABEL, inicial, type PetSize, type Sexo } from "@/lib/perro";
-import { formatFecha, calcularEdad } from "@/lib/date";
+import { SERVICIO_LABEL, ESTADO_LABEL } from "@/lib/labels";
+import { DEWORMING_TYPE_LABEL } from "@/lib/validations/salud";
+import { formatFecha, calcularEdad, hoyISO } from "@/lib/date";
 import { formatMoneda } from "@/lib/utils";
 import { obtenerDetallePerro, type PerroDetalle } from "@/app/(dashboard)/perros/actions";
-
-const SERVICIO_LABEL: Record<string, string> = {
-  HOTEL: "Hotel",
-  ESTETICA: "Estética",
-  GUARDERIA: "Guardería",
-};
-const ESTADO_LABEL: Record<string, string> = {
-  RESERVADA: "Reservada",
-  EN_CURSO: "En curso",
-  FINALIZADA: "Finalizada",
-  CANCELADA: "Cancelada",
-};
 
 function Dato({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -64,6 +47,10 @@ export function PerroDetalleContenido({
   const [detalle, setDetalle] = useState<PerroDetalle | null>(null);
   const [error, setError] = useState(false);
 
+  // Excepción consciente a "no useEffect para fetch" (CLAUDE.md §6): este es un
+  // pop-up de cliente que carga la ficha SOLO al abrirse, sobre datos que ya
+  // vienen del servidor en la lista. No justifica añadir SWR/React Query (que
+  // CLAUDE.md desaconseja); el flag `activo` evita el set tras desmontar.
   useEffect(() => {
     let activo = true;
     obtenerDetallePerro(perroId).then((res) => {
@@ -100,10 +87,12 @@ export function PerroDetalleContenido({
     );
   }
 
-  const { perro, cliente, reservaciones } = detalle;
+  const { perro, cliente, reservaciones, dewormings, vaccines } = detalle;
   const edad = calcularEdad(perro.fecha_nacimiento);
-  // Sin fecha de vencimiento (sin equivalente en pets): estado binario.
-  const cartilla = perro.cartilla_vigente ? "vigente" : "vencida";
+  // La cartilla está vigente si fue aprobada Y ninguna vacuna registrada venció
+  // (misma regla que la app móvil, que demota a EXPIRED al vencer una vacuna).
+  const algunaVacunaVencida = vaccines.some((v) => v.expiresAt && v.expiresAt < hoyISO());
+  const cartilla = perro.cartilla_vigente && !algunaVacunaVencida ? "vigente" : "vencida";
 
   return (
     <div className="space-y-5">
@@ -152,8 +141,8 @@ export function PerroDetalleContenido({
         <Dato label="Nacimiento" value={formatFecha(perro.fecha_nacimiento)} />
       </dl>
 
-      {/* Alergias / comportamiento / notas */}
-      {(perro.alergias || perro.comportamiento || perro.notas) && (
+      {/* Alergias / comportamiento / notas / domicilio */}
+      {(perro.alergias || perro.comportamiento || perro.notas || perro.domicilio) && (
         <div className="space-y-3 rounded-xl border border-neutral-border bg-white p-4">
           {perro.alergias && (
             <div>
@@ -173,15 +162,19 @@ export function PerroDetalleContenido({
               <p className="text-sm text-neutral-ink">{perro.notas}</p>
             </div>
           )}
+          {perro.domicilio && (
+            <div>
+              <p className="text-xs text-neutral-muted">Domicilio</p>
+              <p className="text-sm text-neutral-ink">{perro.domicilio}</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Cartilla (estado binario; sin fecha de vencimiento en el esquema nuevo) */}
       <div
         className={`flex items-center gap-3 rounded-xl border p-4 ${
-          cartilla === "vigente"
-            ? "border-emerald-200 bg-emerald-50"
-            : "border-rose-200 bg-rose-50"
+          cartilla === "vigente" ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
         }`}
       >
         {cartilla === "vigente" ? (
@@ -195,6 +188,75 @@ export function PerroDetalleContenido({
           </p>
         </div>
       </div>
+
+      {/* Vacunas (tabla vaccines) */}
+      {vaccines.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-brand-teal">Vacunas</h2>
+          <ul className="space-y-2">
+            {vaccines.map((v) => {
+              const vigente = !v.expiresAt || v.expiresAt >= hoyISO();
+              return (
+                <li
+                  key={v.id}
+                  className="flex items-center justify-between rounded-xl border border-neutral-border bg-white px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-neutral-ink">{v.nombre}</p>
+                    <p className="text-xs text-neutral-muted">
+                      {v.expiresAt ? `Vence: ${formatFecha(v.expiresAt)}` : "Sin vencimiento"}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      vigente ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {vigente ? "Vigente" : "Vencida"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Desparasitaciones (tabla dewormings) */}
+      {dewormings.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-brand-teal">Desparasitaciones</h2>
+          <ul className="space-y-2">
+            {dewormings.map((d) => {
+              const vigente = !d.expiresAt || d.expiresAt >= hoyISO();
+              return (
+                <li
+                  key={d.id}
+                  className="flex items-center justify-between rounded-xl border border-neutral-border bg-white px-4 py-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-neutral-ink">
+                      {DEWORMING_TYPE_LABEL[d.type]}
+                      {d.productName ? ` · ${d.productName}` : ""}
+                    </p>
+                    <p className="text-xs text-neutral-muted">
+                      {d.expiresAt
+                        ? `Próxima dosis: ${formatFecha(d.expiresAt)}`
+                        : "Sin vencimiento"}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      vigente ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                    }`}
+                  >
+                    {vigente ? "Vigente" : "Vencida"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Acciones */}
       <div className="grid grid-cols-2 gap-2">
@@ -235,9 +297,7 @@ export function PerroDetalleContenido({
                   <p className="text-sm font-medium text-brand-ingreso">
                     {formatMoneda(r.precio_acordado)}
                   </p>
-                  <p className="text-xs text-neutral-muted">
-                    {ESTADO_LABEL[r.estado] ?? r.estado}
-                  </p>
+                  <p className="text-xs text-neutral-muted">{ESTADO_LABEL[r.estado] ?? r.estado}</p>
                 </div>
               </li>
             ))}

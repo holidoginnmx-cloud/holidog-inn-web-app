@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PerroForm } from "@/components/domain/PerroForm";
+import { obtenerCatalogoVacunas } from "../data";
 
-export default function NuevoPerroPage() {
+export default async function NuevoPerroPage() {
+  const catalogoVacunas = await obtenerCatalogoVacunas();
+
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
       <div className="flex items-center gap-2">
@@ -16,7 +19,7 @@ export default function NuevoPerroPage() {
         <h1 className="text-2xl font-semibold text-neutral-ink">Nuevo perro</h1>
       </div>
 
-      <PerroForm mode="crear" />
+      <PerroForm mode="crear" catalogoVacunas={catalogoVacunas} />
     </div>
   );
 }

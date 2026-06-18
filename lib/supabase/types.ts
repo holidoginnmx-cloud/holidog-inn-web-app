@@ -1731,6 +1731,10 @@ export type Database = {
       }
       users: {
         Row: {
+          address: string | null
+          addressLat: number | null
+          addressLng: number | null
+          addressPlaceId: string | null
           avatarUrl: string | null
           clerkId: string | null
           createdAt: string
@@ -1747,6 +1751,10 @@ export type Database = {
           updatedAt: string
         }
         Insert: {
+          address?: string | null
+          addressLat?: number | null
+          addressLng?: number | null
+          addressPlaceId?: string | null
           avatarUrl?: string | null
           clerkId?: string | null
           createdAt?: string
@@ -1763,6 +1771,10 @@ export type Database = {
           updatedAt: string
         }
         Update: {
+          address?: string | null
+          addressLat?: number | null
+          addressLng?: number | null
+          addressPlaceId?: string | null
           avatarUrl?: string | null
           clerkId?: string | null
           createdAt?: string

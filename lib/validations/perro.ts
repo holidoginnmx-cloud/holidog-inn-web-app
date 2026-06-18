@@ -38,11 +38,12 @@ export const perroInputSchema = z.object({
   veterinario: opcional(z.string().max(120)),
   esterilizado: esterilizadoOpcional,
   notas: opcional(z.string().max(1000)),
-  domicilio: opcional(z.string().max(300)),
   cartilla_vigente: checkbox,
-  cartilla_vence: fechaOpcional,
-  desparasitacion_vigente: checkbox,
-  desparasitacion_vence: fechaOpcional,
+  // El domicilio se guarda en users.address (no en pets) y se maneja aparte en
+  // la Server Action. Las desparasitaciones y las vacunas viven en sus tablas
+  // (`dewormings`, `vaccines`) y también se sincronizan aparte (ver
+  // lib/validations/salud.ts + perros/actions.ts). La vigencia de cartilla se
+  // deriva de las vacunas; `cartilla_vigente` solo refleja el estado de aprobación.
 });
 
 export type PerroInput = z.infer<typeof perroInputSchema>;

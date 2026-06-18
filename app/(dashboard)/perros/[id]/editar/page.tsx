@@ -3,7 +3,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sexToSexo } from "@/lib/perro";
-import { PerroForm, type PerroFormValues } from "@/components/domain/PerroForm";
+import { fechaDeTimestamp } from "@/lib/reservacion";
+import {
+  PerroForm,
+  type PerroFormValues,
+  type DewormingFormRow,
+  type VaccineFormRow,
+} from "@/components/domain/PerroForm";
+import { obtenerCatalogoVacunas } from "../../data";
 
 export const dynamic = "force-dynamic";
 
@@ -11,25 +18,66 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const supabase = createSupabaseServerClient();
 
-  const { data: perro, error } = await supabase
-    .from("pets")
-    .select(
-      "ownerId, nombre:name, raza:breed, sexo:sex, talla:size, fecha_nacimiento:birthDate, peso_kg:weight, veterinario:vetName, esterilizado:isNeutered, alergias:healthIssues, comportamiento:behavior, notas:notes, foto_url:photoUrl, cartilla_foto_url:cartillaUrl, cartillaStatus, cliente:users!pets_ownerId_fkey(nombre:firstName, telefono:phone, email)",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [
+    { data: perro, error },
+    { data: dewormings, error: dwError },
+    { data: vaccines },
+    catalogoVacunas,
+  ] = await Promise.all([
+    supabase
+      .from("pets")
+      .select(
+        "ownerId, nombre:name, raza:breed, sexo:sex, talla:size, fecha_nacimiento:birthDate, peso_kg:weight, veterinario:vetName, esterilizado:isNeutered, alergias:healthIssues, comportamiento:behavior, notas:notes, foto_url:photoUrl, cartilla_foto_url:cartillaUrl, cartillaStatus, cliente:users!pets_ownerId_fkey(nombre:firstName, telefono:phone, email, domicilio:address, domicilioLat:addressLat, domicilioLng:addressLng, domicilioPlaceId:addressPlaceId)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("dewormings")
+      .select("id, type, productName, appliedAt, expiresAt, vetName, notes")
+      .eq("petId", id)
+      .order("appliedAt", { ascending: false }),
+    supabase
+      .from("vaccines")
+      .select("id, catalogId, appliedAt, expiresAt, vetName")
+      .eq("petId", id)
+      .order("appliedAt", { ascending: false }),
+    obtenerCatalogoVacunas(),
+  ]);
 
   if (error) console.error("[perros] Error al cargar perro para editar:", error);
+  if (dwError) console.error("[perros] Error al cargar desparasitaciones:", dwError);
   if (!perro) notFound();
 
   const cli = perro.cliente as {
     nombre: string;
     telefono: string | null;
     email: string | null;
+    domicilio: string | null;
+    domicilioLat: number | null;
+    domicilioLng: number | null;
+    domicilioPlaceId: string | null;
   } | null;
 
+  const dewormingsInicial: DewormingFormRow[] = (dewormings ?? []).map((d) => ({
+    id: d.id,
+    type: d.type,
+    productName: d.productName ?? "",
+    appliedAt: fechaDeTimestamp(d.appliedAt) ?? "",
+    expiresAt: fechaDeTimestamp(d.expiresAt) ?? "",
+    vetName: d.vetName ?? "",
+    notes: d.notes ?? "",
+  }));
+
+  const vaccinesInicial: VaccineFormRow[] = (vaccines ?? []).map((v) => ({
+    id: v.id,
+    catalogId: v.catalogId ?? "",
+    appliedAt: fechaDeTimestamp(v.appliedAt) ?? "",
+    expiresAt: fechaDeTimestamp(v.expiresAt) ?? "",
+    vetName: v.vetName ?? "",
+  }));
+
   // Campos SIN equivalente en el esquema nuevo (se inicializan vacíos en el
-  // form): cliente.notas, perro.domicilio, cartilla_vence, desparasitacion_*.
+  // form): cliente.notas, perro.domicilio.
   const initial: PerroFormValues = {
     cliente: {
       nombre: cli?.nombre ?? "",
@@ -52,12 +100,14 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
       veterinario: perro.veterinario ?? "",
       esterilizado: perro.esterilizado == null ? "" : perro.esterilizado ? "SI" : "NO",
       notas: perro.notas ?? "",
-      domicilio: "",
+      domicilio: cli?.domicilio ?? "",
+      domicilioLat: cli?.domicilioLat != null ? String(cli.domicilioLat) : "",
+      domicilioLng: cli?.domicilioLng != null ? String(cli.domicilioLng) : "",
+      domicilioPlaceId: cli?.domicilioPlaceId ?? "",
       cartilla_vigente: perro.cartillaStatus === "APPROVED",
-      cartilla_vence: "",
-      desparasitacion_vigente: false,
-      desparasitacion_vence: "",
     },
+    dewormings: dewormingsInicial,
+    vaccines: vaccinesInicial,
   };
 
   return (
@@ -80,6 +130,7 @@ export default async function EditarPerroPage({ params }: { params: Promise<{ id
         initial={initial}
         fotoActualUrl={perro.foto_url}
         cartillaActualUrl={perro.cartilla_foto_url}
+        catalogoVacunas={catalogoVacunas}
       />
     </div>
   );

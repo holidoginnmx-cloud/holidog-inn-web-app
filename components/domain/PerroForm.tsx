@@ -11,11 +11,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ClienteForm } from "./ClienteForm";
+import { DewormingsEditor } from "./DewormingsEditor";
+import { VaccinesEditor } from "./VaccinesEditor";
+import { DomicilioPicker } from "./DomicilioPicker";
 import { TallaBadge } from "./TallaBadge";
 import { calcularSize, SIZE_RANGO, type PetSize } from "@/lib/perro";
 import { TALLA_LABEL } from "@/lib/labels";
+import type { VaccineCatalogItem } from "@/lib/validations/salud";
 import { comprimirImagen } from "@/lib/image";
 import { crearClienteYPerro, actualizarClienteYPerro } from "@/app/(dashboard)/perros/actions";
+
+// Una fila de desparasitación en el formulario (strings, como los inputs HTML).
+// Se persiste en la tabla `dewormings` (ver lib/validations/salud.ts).
+export type DewormingFormRow = {
+  id?: string;
+  type: "INTERNAL" | "EXTERNAL" | "BOTH";
+  productName: string;
+  appliedAt: string;
+  expiresAt: string;
+  vetName: string;
+  notes: string;
+};
+
+// Una fila de vacuna en el formulario. Se persiste en la tabla `vaccines`;
+// `catalogId` referencia `vaccine_catalog` (ver lib/validations/salud.ts).
+export type VaccineFormRow = {
+  id?: string;
+  catalogId: string;
+  appliedAt: string;
+  expiresAt: string;
+  vetName: string;
+};
 
 export type PerroFormValues = {
   cliente: { nombre: string; telefono: string; email: string; notas: string };
@@ -32,11 +58,13 @@ export type PerroFormValues = {
     esterilizado: "" | "SI" | "NO";
     notas: string;
     domicilio: string;
+    domicilioLat: string;
+    domicilioLng: string;
+    domicilioPlaceId: string;
     cartilla_vigente: boolean;
-    cartilla_vence: string;
-    desparasitacion_vigente: boolean;
-    desparasitacion_vence: string;
   };
+  dewormings: DewormingFormRow[];
+  vaccines: VaccineFormRow[];
 };
 
 export const VALORES_VACIOS: PerroFormValues = {
@@ -54,14 +82,16 @@ export const VALORES_VACIOS: PerroFormValues = {
     esterilizado: "",
     notas: "",
     domicilio: "",
+    domicilioLat: "",
+    domicilioLng: "",
+    domicilioPlaceId: "",
     cartilla_vigente: false,
-    cartilla_vence: "",
-    desparasitacion_vigente: false,
-    desparasitacion_vence: "",
   },
+  dewormings: [],
+  vaccines: [],
 };
 
-type Props =
+type Props = { catalogoVacunas: VaccineCatalogItem[] } & (
   | { mode: "crear" }
   | {
       mode: "editar";
@@ -70,7 +100,8 @@ type Props =
       initial: PerroFormValues;
       fotoActualUrl: string | null;
       cartillaActualUrl: string | null;
-    };
+    }
+);
 
 const inputSelectClass =
   "flex h-11 w-full rounded-md border border-input bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -129,10 +160,10 @@ export function PerroForm(props: Props) {
     setErrorMsg(null);
     setPending(true);
     try {
-      // NOTA migración: estos campos del form SIN equivalente en el esquema
-      // unificado se siguen enviando pero la Server Action los IGNORA al
-      // escribir: cliente.notas, perro.domicilio, perro.cartilla_vence,
-      // perro.desparasitacion_vigente, perro.desparasitacion_vence.
+      // NOTA migración: `cliente.notas` no tiene columna y la Server Action lo
+      // ignora. El domicilio, las desparasitaciones y las vacunas SÍ se
+      // persisten: domicilio en users.address; dewormings y vaccines en sus
+      // tablas vía los campos JSON `dewormings`/`vaccines`.
       const fd = new FormData();
       fd.set("cliente.nombre", values.cliente.nombre);
       fd.set("cliente.telefono", values.cliente.telefono);
@@ -150,12 +181,13 @@ export function PerroForm(props: Props) {
       fd.set("perro.esterilizado", values.perro.esterilizado);
       fd.set("perro.notas", values.perro.notas);
       fd.set("perro.cartilla_vigente", values.perro.cartilla_vigente ? "true" : "false");
-      fd.set("perro.cartilla_vence", values.perro.cartilla_vence);
-      fd.set(
-        "perro.desparasitacion_vigente",
-        values.perro.desparasitacion_vigente ? "true" : "false",
-      );
-      fd.set("perro.desparasitacion_vence", values.perro.desparasitacion_vence);
+      // Domicilio: se persiste a nivel del dueño (users.address + lat/lng/placeId).
+      fd.set("domicilio", values.perro.domicilio);
+      fd.set("domicilioLat", values.perro.domicilioLat);
+      fd.set("domicilioLng", values.perro.domicilioLng);
+      fd.set("domicilioPlaceId", values.perro.domicilioPlaceId);
+      fd.set("dewormings", JSON.stringify(values.dewormings));
+      fd.set("vaccines", JSON.stringify(values.vaccines));
 
       if (file) {
         const comprimida = await comprimirImagen(file);
@@ -283,13 +315,23 @@ export function PerroForm(props: Props) {
               <Label htmlFor="perro-talla">Talla</Label>
               <select id="perro-talla" className={inputSelectClass} {...register("perro.talla")}>
                 <option value="">—</option>
-                <option value="XS">{TALLA_LABEL.XS} ({SIZE_RANGO.XS})</option>
-                <option value="S">{TALLA_LABEL.S} ({SIZE_RANGO.S})</option>
-                <option value="M">{TALLA_LABEL.M} ({SIZE_RANGO.M})</option>
-                <option value="L">{TALLA_LABEL.L} ({SIZE_RANGO.L})</option>
-                <option value="XL">{TALLA_LABEL.XL} ({SIZE_RANGO.XL})</option>
+                <option value="XS">
+                  {TALLA_LABEL.XS} ({SIZE_RANGO.XS})
+                </option>
+                <option value="S">
+                  {TALLA_LABEL.S} ({SIZE_RANGO.S})
+                </option>
+                <option value="M">
+                  {TALLA_LABEL.M} ({SIZE_RANGO.M})
+                </option>
+                <option value="L">
+                  {TALLA_LABEL.L} ({SIZE_RANGO.L})
+                </option>
+                <option value="XL">
+                  {TALLA_LABEL.XL} ({SIZE_RANGO.XL})
+                </option>
               </select>
-              <p className="text-neutral-muted text-xs">
+              <p className="text-xs text-neutral-muted">
                 Si capturas el peso, la talla se calcula sola.
               </p>
             </div>
@@ -343,24 +385,13 @@ export function PerroForm(props: Props) {
             <Textarea id="perro-notas" rows={2} className="bg-white" {...register("perro.notas")} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="perro-domicilio">Domicilio (opcional)</Label>
-            <Textarea
-              id="perro-domicilio"
-              rows={2}
-              className="bg-white"
-              {...register("perro.domicilio")}
-            />
-            <p className="text-neutral-muted text-xs">
-              Para cuando el cliente pide que pasen por su mascota.
-            </p>
-          </div>
+          <DomicilioPicker />
 
           {/* Cartilla */}
           <div className="space-y-3 rounded-md border border-neutral-border p-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="perro-cartilla" className="cursor-pointer">
-                Cartilla vigente
+                Cartilla aprobada
               </Label>
               <Controller
                 control={control}
@@ -374,15 +405,9 @@ export function PerroForm(props: Props) {
                 )}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="perro-cartilla-vence">Vence (opcional)</Label>
-              <Input
-                id="perro-cartilla-vence"
-                type="date"
-                className="bg-white"
-                {...register("perro.cartilla_vence")}
-              />
-            </div>
+            <p className="text-xs text-neutral-muted">
+              La vigencia real se calcula con las fechas de las vacunas de abajo.
+            </p>
 
             {/* Foto de la cartilla */}
             <div className="space-y-2">
@@ -405,44 +430,16 @@ export function PerroForm(props: Props) {
               </div>
               <label className="inline-block cursor-pointer text-sm font-medium text-brand-teal">
                 {cartillaPreview ? "Cambiar foto de cartilla" : "Agregar foto de cartilla"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={onPickCartilla}
-                />
+                <input type="file" accept="image/*" className="hidden" onChange={onPickCartilla} />
               </label>
             </div>
           </div>
 
-          {/* Desparasitación */}
-          <div className="space-y-3 rounded-md border border-neutral-border p-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="perro-desparasitacion" className="cursor-pointer">
-                Desparasitación vigente
-              </Label>
-              <Controller
-                control={control}
-                name="perro.desparasitacion_vigente"
-                render={({ field }) => (
-                  <Switch
-                    id="perro-desparasitacion"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                )}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="perro-desparasitacion-vence">Vence (opcional)</Label>
-              <Input
-                id="perro-desparasitacion-vence"
-                type="date"
-                className="bg-white"
-                {...register("perro.desparasitacion_vence")}
-              />
-            </div>
-          </div>
+          {/* Vacunas (tablas vaccines + vaccine_catalog) */}
+          <VaccinesEditor catalogo={props.catalogoVacunas} />
+
+          {/* Desparasitaciones (tabla dewormings) */}
+          <DewormingsEditor />
         </fieldset>
 
         {errorMsg && (
