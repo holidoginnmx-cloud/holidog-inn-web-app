@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Package, ClipboardList, Tag, FolderTree } from "lucide-react";
+import { Plus, Package, ClipboardList, Tag, FolderTree, Star, Truck } from "lucide-react";
 import { createStoreServerClient } from "@/lib/supabase/store-server";
 import { formatMoneda } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +70,8 @@ export default async function TiendaPage() {
         <div className="flex gap-2">
           <SubLink href="/tienda/categorias" icon={<FolderTree className="size-4" />} label="Categorías" />
           <SubLink href="/tienda/pedidos" icon={<ClipboardList className="size-4" />} label="Pedidos" />
+          <SubLink href="/tienda/resenas" icon={<Star className="size-4" />} label="Reseñas" />
+          <SubLink href="/tienda/envio" icon={<Truck className="size-4" />} label="Envío" />
           <SubLink href="/tienda/descuentos" icon={<Tag className="size-4" />} label="Descuentos" />
         </div>
       </div>

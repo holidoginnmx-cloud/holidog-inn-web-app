@@ -7,9 +7,11 @@ import { createStoreServerClient, type StoreDB } from "@/lib/supabase/store-serv
 import {
   categoriaSchema,
   descuentoSchema,
+  envioConfigSchema,
   estadoPedidoSchema,
   nuevoProductoSchema,
   productoSchema,
+  trackingSchema,
   varianteSchema,
 } from "@/lib/validations/tienda";
 
@@ -435,6 +437,84 @@ export async function actualizarEstadoPedido(
     }
     revalidatePath("/tienda/pedidos");
     revalidatePath(`/tienda/pedidos/${pedidoId}`);
+    return { ok: true, data: null };
+  });
+}
+
+// Rastreo del envío nacional (paquetería + número de guía).
+export async function guardarTracking(
+  pedidoId: string,
+  formData: FormData,
+): Promise<ActionResult<null>> {
+  const v = validar(trackingSchema, leer(formData, ["trackingCarrier", "trackingNumber"]));
+  if (!v.ok) return v;
+
+  return withStore("guardarTracking", async (sb) => {
+    const { error } = await sb
+      .from("orders")
+      .update({
+        trackingCarrier: v.data.trackingCarrier,
+        trackingNumber: v.data.trackingNumber,
+        updatedAt: now(),
+      })
+      .eq("id", pedidoId);
+    if (error) {
+      console.error("[tienda:guardarTracking]", error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    revalidatePath(`/tienda/pedidos/${pedidoId}`);
+    return { ok: true, data: null };
+  });
+}
+
+// ─── Configuración de envío nacional ───────────────────────
+
+export async function guardarEnvioConfig(formData: FormData): Promise<ActionResult<null>> {
+  const v = validar(envioConfigSchema, leer(formData, ["nationalShippingFee"]));
+  if (!v.ok) return v;
+
+  return withStore("guardarEnvioConfig", async (sb) => {
+    // Singleton. El upsert solo toca nationalShippingFee/updatedAt; baseFee,
+    // pricePerKm e isActive (entrega local) quedan intactos.
+    const { error } = await sb.from("delivery_config").upsert({
+      id: "singleton",
+      nationalShippingFee: v.data.nationalShippingFee,
+      updatedAt: now(),
+    });
+    if (error) {
+      console.error("[tienda:guardarEnvioConfig]", error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    revalidatePath("/tienda/envio");
+    return { ok: true, data: null };
+  });
+}
+
+// ─── Reseñas (moderación) ───────────────────────────────────
+
+export async function aprobarResena(resenaId: string): Promise<ActionResult<null>> {
+  return withStore("aprobarResena", async (sb) => {
+    const { error } = await sb
+      .from("product_reviews")
+      .update({ isApproved: true })
+      .eq("id", resenaId);
+    if (error) {
+      console.error("[tienda:aprobarResena]", error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    revalidatePath("/tienda/resenas");
+    return { ok: true, data: null };
+  });
+}
+
+export async function eliminarResena(resenaId: string): Promise<ActionResult<null>> {
+  return withStore("eliminarResena", async (sb) => {
+    const { error } = await sb.from("product_reviews").delete().eq("id", resenaId);
+    if (error) {
+      console.error("[tienda:eliminarResena]", error);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    revalidatePath("/tienda/resenas");
     return { ok: true, data: null };
   });
 }

@@ -84,9 +84,43 @@ export type OrderRow = Timestamps & {
   total: number;
   stripePaymentIntentId: string | null;
   notes: string | null;
+  // Dirección de envío (LOCAL_DELIVERY / NATIONAL_SHIPPING) — null en PICKUP.
+  shippingAddress: string | null;
+  shippingLat: number | null;
+  shippingLng: number | null;
+  shippingPlaceId: string | null;
+  // Rastreo del envío nacional (lo captura el admin al despachar).
+  trackingCarrier: string | null;
+  trackingNumber: string | null;
   paidAt: string | null;
   userId: string | null;
   discountCodeId: string | null;
+};
+
+// Configuración de envío/domicilio (singleton id="singleton"). baseFee/pricePerKm/
+// isActive controlan la entrega local (se editan desde el admin móvil);
+// nationalShippingFee es la tarifa plana del envío nacional de la tienda.
+export type DeliveryConfigRow = {
+  id: string;
+  baseFee: number;
+  pricePerKm: number;
+  isActive: boolean;
+  nationalShippingFee: number | null;
+  updatedAt: string;
+};
+
+// Reseña de producto. El admin la modera (isApproved) antes de publicarla.
+export type ProductReviewRow = {
+  id: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  authorName: string;
+  orderId: string | null;
+  isApproved: boolean;
+  createdAt: string;
+  productId: string;
+  userId: string | null;
 };
 
 export type OrderItemRow = {
@@ -134,6 +168,8 @@ export type StoreDatabase = {
       orders: Table<OrderRow>;
       order_items: Table<OrderItemRow>;
       discount_codes: Table<DiscountCodeRow>;
+      product_reviews: Table<ProductReviewRow>;
+      delivery_config: Table<DeliveryConfigRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

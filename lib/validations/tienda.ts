@@ -79,3 +79,16 @@ export const estadoPedidoSchema = z.enum([
   "CANCELLED",
   "REFUNDED",
 ]);
+
+// ── Rastreo de envío (lo captura el admin al despachar) ─────
+export const trackingSchema = z.object({
+  trackingCarrier: opcional(z.string().max(80)),
+  trackingNumber: opcional(z.string().max(120)),
+});
+export type TrackingInput = z.infer<typeof trackingSchema>;
+
+// ── Configuración de envío nacional (tarifa plana; vacío = desactivado) ─────
+export const envioConfigSchema = z.object({
+  nationalShippingFee: montoOpcionalNoNegativo,
+});
+export type EnvioConfigInput = z.infer<typeof envioConfigSchema>;

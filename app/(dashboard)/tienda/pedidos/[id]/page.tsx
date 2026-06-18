@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FULFILLMENT_LABEL } from "@/lib/labels-tienda";
 import type { FulfillmentType, OrderStatus } from "@/lib/supabase/store-types";
 import { EstadoPedidoSelector } from "@/components/domain/tienda/EstadoPedidoSelector";
+import { TrackingForm } from "@/components/domain/tienda/TrackingForm";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function PedidoDetallePage({ params }: { params: Promise<{ 
   const { data: pedido } = await sb
     .from("orders")
     .select(
-      "id, orderNumber, email, status, fulfillmentType, subtotal, discountTotal, shippingTotal, total, notes, stripePaymentIntentId, createdAt, paidAt",
+      "id, orderNumber, email, status, fulfillmentType, subtotal, discountTotal, shippingTotal, total, notes, stripePaymentIntentId, createdAt, paidAt, shippingAddress, trackingCarrier, trackingNumber",
     )
     .eq("id", id)
     .maybeSingle();
@@ -99,6 +100,11 @@ export default async function PedidoDetallePage({ params }: { params: Promise<{ 
               <span className="text-neutral-muted">Entrega:</span>{" "}
               {FULFILLMENT_LABEL[pedido.fulfillmentType as FulfillmentType]}
             </p>
+            {pedido.shippingAddress && (
+              <p>
+                <span className="text-neutral-muted">Dirección:</span> {pedido.shippingAddress}
+              </p>
+            )}
             <p>
               <span className="text-neutral-muted">Creado:</span>{" "}
               {fmtFecha.format(new Date(pedido.createdAt))}
@@ -118,6 +124,17 @@ export default async function PedidoDetallePage({ params }: { params: Promise<{ 
               <p>
                 <span className="text-neutral-muted">Notas:</span> {pedido.notes}
               </p>
+            )}
+
+            {pedido.fulfillmentType !== "PICKUP" && (
+              <div className="border-neutral-border mt-3 border-t pt-3">
+                <p className="text-neutral-muted mb-2 text-xs font-medium uppercase">Rastreo del envío</p>
+                <TrackingForm
+                  pedidoId={pedido.id}
+                  carrier={pedido.trackingCarrier}
+                  number={pedido.trackingNumber}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
