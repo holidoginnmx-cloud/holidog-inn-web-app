@@ -17,14 +17,9 @@ import {
 import { sumarPagos, estadoPago } from "@/lib/reservacion";
 import { MesSelector } from "@/components/domain/dashboard/MesSelector";
 import type { ComboOption } from "@/components/domain/Combobox";
+import { one } from "@/lib/supabase/helpers";
 
 export const dynamic = "force-dynamic";
-
-// Normaliza un embed que puede venir como objeto o arreglo de un elemento.
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
 
 function resolverMes(sp: { anio?: string; mes?: string }): MesAnio {
   const anio = Number(sp.anio);
@@ -54,51 +49,51 @@ export default async function MovimientosPage({
 
   const [pagosRes, egresosRes, ingMesRes, egrMesRes, perrosRes, catsRes, pendientesRes] =
     await Promise.all([
-    supabase
-      .from("payments")
-      .select(
-        "id, monto:amount, tipo:kind, fecha:paidAt, metodo_pago:method, descripcion:notes, reservacion_id:reservationId",
-      )
-      .gte("paidAt", desde)
-      .lt("paidAt", hasta)
-      .order("paidAt", { ascending: false })
-      .limit(200),
-    supabase
-      .from("expenses")
-      .select(
-        "id, fecha:date, descripcion:description, monto:amount, categoria:category, tipo_costo:costType, notas:notes",
-      )
-      .gte("date", desde)
-      .lt("date", hasta)
-      .order("date", { ascending: false })
-      .limit(200),
-    supabase
-      .from("vw_ingresos_mensuales")
-      .select("total_ingresos")
-      .eq("anio", anio)
-      .eq("mes_num", mes)
-      .maybeSingle(),
-    supabase
-      .from("vw_egresos_mensuales")
-      .select("total_egresos")
-      .eq("anio", anio)
-      .eq("mes_num", mes)
-      .maybeSingle(),
-    supabase
-      .from("pets")
-      .select("id, nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)")
-      .order("name"),
-    supabase.from("expenses").select("categoria:category"),
-    // Pendientes de cobro: global, sin filtro de mes. El saldo se deriva en JS.
-    supabase
-      .from("reservations")
-      .select(
-        "id, petId, reservationType, checkIn, appointmentAt, totalAmount, pet:pets(nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)), payments(monto:amount)",
-      )
-      .neq("status", "CANCELLED")
-      .gt("totalAmount", 0)
-      .order("checkIn", { ascending: true, nullsFirst: false }),
-  ]);
+      supabase
+        .from("payments")
+        .select(
+          "id, monto:amount, tipo:kind, fecha:paidAt, metodo_pago:method, descripcion:notes, reservacion_id:reservationId",
+        )
+        .gte("paidAt", desde)
+        .lt("paidAt", hasta)
+        .order("paidAt", { ascending: false })
+        .limit(200),
+      supabase
+        .from("expenses")
+        .select(
+          "id, fecha:date, descripcion:description, monto:amount, categoria:category, tipo_costo:costType, notas:notes",
+        )
+        .gte("date", desde)
+        .lt("date", hasta)
+        .order("date", { ascending: false })
+        .limit(200),
+      supabase
+        .from("vw_ingresos_mensuales")
+        .select("total_ingresos")
+        .eq("anio", anio)
+        .eq("mes_num", mes)
+        .maybeSingle(),
+      supabase
+        .from("vw_egresos_mensuales")
+        .select("total_egresos")
+        .eq("anio", anio)
+        .eq("mes_num", mes)
+        .maybeSingle(),
+      supabase
+        .from("pets")
+        .select("id, nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)")
+        .order("name"),
+      supabase.from("expenses").select("categoria:category"),
+      // Pendientes de cobro: global, sin filtro de mes. El saldo se deriva en JS.
+      supabase
+        .from("reservations")
+        .select(
+          "id, petId, reservationType, checkIn, appointmentAt, totalAmount, pet:pets(nombre:name, cliente:users!pets_ownerId_fkey(nombre:firstName)), payments(monto:amount)",
+        )
+        .neq("status", "CANCELLED")
+        .gt("totalAmount", 0)
+        .order("checkIn", { ascending: true, nullsFirst: false }),
+    ]);
 
   // Servicio y nombre del perro de cada pago: se resuelven por reservationId
   // contra la tabla unificada `reservations` (+ pets) en una consulta aparte.
@@ -154,8 +149,9 @@ export default async function MovimientosPage({
       const pagado = sumarPagos(r.payments);
       const ep = estadoPago(r.totalAmount, pagado);
       if (ep.key !== "PENDIENTE") return null;
-      const pet = one(r.pet) as { nombre: string; cliente: unknown } | null;
-      const cli = one(pet?.cliente) as { nombre: string } | null;
+      type ClienteEmbed = { nombre: string } | { nombre: string }[] | null;
+      const pet = one(r.pet) as { nombre: string; cliente: ClienteEmbed } | null;
+      const cli = one(pet?.cliente);
       return {
         reservacionId: r.id,
         perroId: r.petId,

@@ -97,35 +97,28 @@ app/
   (dashboard)/
     layout.tsx                         # bottom-nav móvil + header
     page.tsx                           # dashboard (resumen)
-    perros/
-      page.tsx                         # lista
-      nuevo/page.tsx
-      [id]/page.tsx                    # ficha del perro
-      [id]/editar/page.tsx
-    clientes/...
-    reservaciones/
-      page.tsx                         # calendario
-      nueva/page.tsx
-      [id]/page.tsx
-    ingresos/                          # captura rápida de pagos
-    egresos/                           # captura rápida de egresos
-    config/page.tsx
+    perros/                            # lista, nuevo, [id], [id]/editar, revisar
+    reservaciones/                     # calendario, nueva, [id]/editar
+    movimientos/                       # captura unificada de ingresos + egresos + pendientes
+    tienda/                            # admin de e-commerce (productos, pedidos, etc.)
+    config/                            # tarifas, patrocinios, migrar
   api/
-    (solo si es estrictamente necesario; preferir Server Actions)
+    export/route.ts                    # único Route Handler (descarga de Excel)
 components/
   ui/                                  # shadcn primitives
-  domain/                              # PerroCard, PagoForm, CalendarioReservaciones, etc.
+  domain/                              # PerroCard, PagoForm, ReservacionesCalendar, dashboard/, tienda/
   layout/                              # BottomNav, AppHeader
 lib/
-  supabase/
-    client.ts                          # browser client
-    server.ts                          # server client (con service role en server-only)
-    types.ts                           # generado con `supabase gen types`
+  supabase/                            # clientes + tipos + helpers — ver lib/supabase/README.md
   validations/                         # schemas de zod por entidad
-  utils.ts
-  date.ts                              # helpers con date-fns en español
-middleware.ts                          # Clerk authMiddleware
+  actions.ts                           # withSupabase() / validar() / ActionResult
+  utils.ts, date.ts, labels.ts, …      # helpers de dominio
+proxy.ts                               # Clerk middleware (en Next.js 16 se llama proxy.ts, no middleware.ts)
 ```
+
+> **Nota de datos:** la base tiene dos familias de tablas (nuevas en inglés
+> compartidas con la app móvil, y legacy en español del Excel). El admin usa
+> **solo las nuevas**. Detalle y consecuencias en `lib/supabase/README.md`.
 
 ## 6. Convenciones de código
 

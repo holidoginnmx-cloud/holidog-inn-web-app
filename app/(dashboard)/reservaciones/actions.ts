@@ -6,6 +6,7 @@ import { reservacionInputSchema } from "@/lib/validations/reservacion";
 import { servicioToType, estadoToStatus } from "@/lib/labels";
 import { timestampDeFecha } from "@/lib/reservacion";
 import { bathSizeKey } from "@/lib/estetica";
+import { one } from "@/lib/supabase/helpers";
 import type { Enums } from "@/lib/supabase/types";
 
 type ReservacionData = ReturnType<typeof reservacionInputSchema.parse>;
@@ -46,11 +47,6 @@ async function buscarOwnerId(supabase: DB, petId: string): Promise<string | null
   return data.ownerId;
 }
 
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
-
 // Sincroniza el baño (y sus flags corte/deslanado) de una reservación con la
 // tabla `reservation_addons`, reutilizando el modelo compartido con la app
 // móvil. El baño = un addon que apunta a una `service_variant` de tipo BATH.
@@ -72,16 +68,11 @@ async function sincronizarBano(
       .from("reservation_addons")
       .select("id, variant:service_variants(serviceType:service_types(code))")
       .eq("reservationId", reservationId);
-    const existente = (addons ?? []).find(
-      (a) => one(one(a.variant)?.serviceType)?.code === "BATH",
-    );
+    const existente = (addons ?? []).find((a) => one(one(a.variant)?.serviceType)?.code === "BATH");
 
     if (!data.incluye_bano) {
       if (existente) {
-        const { error } = await supabase
-          .from("reservation_addons")
-          .delete()
-          .eq("id", existente.id);
+        const { error } = await supabase.from("reservation_addons").delete().eq("id", existente.id);
         if (error) console.error("[reservaciones] Error al borrar addon de baño:", error);
       }
       return;
@@ -220,14 +211,35 @@ export async function actualizarReservacion(
 // no-op inofensivo: incluimos las tablas de la app móvil para no romper a futuro.
 export async function eliminarReservacion(id: string): Promise<ActionResult<null>> {
   return withSupabase("reservaciones", async (supabase) => {
-    const hijos: { etiqueta: string; ejecutar: PromiseLike<{ error: { message: string } | null }> }[] = [
-      { etiqueta: "reservation_addons", ejecutar: supabase.from("reservation_addons").delete().eq("reservationId", id) },
-      { etiqueta: "payments", ejecutar: supabase.from("payments").delete().eq("reservationId", id) },
-      { etiqueta: "daily_checklists", ejecutar: supabase.from("daily_checklists").delete().eq("reservationId", id) },
+    const hijos: {
+      etiqueta: string;
+      ejecutar: PromiseLike<{ error: { message: string } | null }>;
+    }[] = [
+      {
+        etiqueta: "reservation_addons",
+        ejecutar: supabase.from("reservation_addons").delete().eq("reservationId", id),
+      },
+      {
+        etiqueta: "payments",
+        ejecutar: supabase.from("payments").delete().eq("reservationId", id),
+      },
+      {
+        etiqueta: "daily_checklists",
+        ejecutar: supabase.from("daily_checklists").delete().eq("reservationId", id),
+      },
       { etiqueta: "reviews", ejecutar: supabase.from("reviews").delete().eq("reservationId", id) },
-      { etiqueta: "staff_alerts", ejecutar: supabase.from("staff_alerts").delete().eq("reservationId", id) },
-      { etiqueta: "stay_updates", ejecutar: supabase.from("stay_updates").delete().eq("reservationId", id) },
-      { etiqueta: "reservation_change_requests", ejecutar: supabase.from("reservation_change_requests").delete().eq("reservationId", id) },
+      {
+        etiqueta: "staff_alerts",
+        ejecutar: supabase.from("staff_alerts").delete().eq("reservationId", id),
+      },
+      {
+        etiqueta: "stay_updates",
+        ejecutar: supabase.from("stay_updates").delete().eq("reservationId", id),
+      },
+      {
+        etiqueta: "reservation_change_requests",
+        ejecutar: supabase.from("reservation_change_requests").delete().eq("reservationId", id),
+      },
     ];
     for (const { etiqueta, ejecutar } of hijos) {
       const { error } = await ejecutar;

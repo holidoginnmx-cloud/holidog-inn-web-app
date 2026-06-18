@@ -25,9 +25,6 @@ export const fechaOpcional = opcional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "F
 // "YYYY-MM-DD" obligatoria.
 export const fechaRequerida = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida");
 
-// "HH:MM" opcional (input type="time"). Postgres `time` acepta este formato.
-export const horaOpcional = opcional(z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"));
-
 // string | number → number. Vacío/nulo → NaN (para que el .number() falle con
 // el mensaje del schema). Los montos obligatorios usan esto directamente.
 function aNumero(v: unknown): number {

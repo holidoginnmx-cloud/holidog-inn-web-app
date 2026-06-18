@@ -39,21 +39,6 @@ export function calcularEdad(fechaNacimiento: string | null | undefined): string
   return `${anios} ${anios === 1 ? "año" : "años"}`;
 }
 
-// ¿La cartilla está por vencer o vencida? (para resaltar en la ficha).
-export function estadoCartilla(
-  vigente: boolean,
-  vence: string | null | undefined,
-): "vigente" | "por_vencer" | "vencida" | "sin_fecha" {
-  if (!vigente) return "vencida";
-  if (!vence) return "sin_fecha";
-  const d = parse(vence);
-  if (!d) return "sin_fecha";
-  const dias = Math.floor((d.getTime() - Date.now()) / 86_400_000);
-  if (dias < 0) return "vencida";
-  if (dias <= 30) return "por_vencer";
-  return "vigente";
-}
-
 // Fecha de hoy en formato "YYYY-MM-DD" (zona local, sin corrimiento UTC).
 export function hoyISO(): string {
   const d = new Date();

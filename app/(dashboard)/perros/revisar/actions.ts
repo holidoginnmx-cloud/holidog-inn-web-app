@@ -42,7 +42,6 @@ async function borrarClienteSiHuerfano(supabase: DB, clienteId: string): Promise
 function revalidar() {
   revalidatePath("/perros");
   revalidatePath("/perros/revisar");
-  revalidatePath("/clientes");
 }
 
 // --------------------------------------------------------------------------

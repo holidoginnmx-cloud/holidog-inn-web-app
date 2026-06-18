@@ -6,11 +6,7 @@ import type { ComboOption } from "@/components/domain/Combobox";
 import type { Tarifas } from "@/lib/tarifas";
 import { MARCA_REVISAR_PERRO, type Talla } from "@/lib/perro";
 import { fechaDeTimestamp } from "@/lib/reservacion";
-
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
+import { one } from "@/lib/supabase/helpers";
 
 // PetSize (esquema unificado) -> Talla legacy, para reutilizar la lógica de
 // peso/talla del formulario y la sugerencia de precio sin cambiar el UI.

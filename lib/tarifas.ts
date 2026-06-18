@@ -94,9 +94,14 @@ export function calcularPrecioSugerido(args: {
   };
 }
 
-// PetSize estimado a partir del peso, usando el mismo escalado que la estética.
-// Para el hotel solo importa small/large; aquí lo usamos para elegir variante
-// de baño cuando hay peso pero no badge de talla.
+// PetSize estimado a partir del peso para COBRO de estética. Lo usamos para
+// elegir variante de baño cuando hay peso pero no badge de talla.
+//
+// OJO: estas bandas (<6, <16, <=25) son las de TARIFA de estética y difieren A
+// PROPÓSITO de `calcularSize()` en lib/perro.ts (<5, <10, <20, <=35), que es la
+// talla/badge general del perro. Son escalas distintas (precio vs. clasificación
+// visual); no las "unifiques" sin confirmar la tabla de precios con el dueño.
+// Debe mantenerse en sync con `etiquetaTallaEstetica()` de abajo.
 function petSizePorPeso(pesoKg: number, tarifas: Tarifas): PetSize {
   if (pesoKg < 6) return "XS";
   if (pesoKg < 16) return "S";

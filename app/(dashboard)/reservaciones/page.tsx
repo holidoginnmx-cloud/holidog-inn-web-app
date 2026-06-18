@@ -9,13 +9,9 @@ import type { ResvLite } from "@/lib/ocupacion";
 import { fechaDeTimestamp } from "@/lib/reservacion";
 import { derivarEstetica, RESV_ADDON_SELECT } from "@/lib/estetica";
 import { ReservacionesScreen } from "@/components/domain/ReservacionesScreen";
+import { one } from "@/lib/supabase/helpers";
 
 export const dynamic = "force-dynamic";
-
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
 
 function sumarPagosEn(pagos: { amount: number | null }[] | null | undefined): number {
   return (pagos ?? []).reduce((acc, p) => acc + (p.amount ?? 0), 0);

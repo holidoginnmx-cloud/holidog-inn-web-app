@@ -1,4 +1,5 @@
 import type { Enums } from "@/lib/supabase/types";
+import { one } from "@/lib/supabase/helpers";
 
 type PetSize = Enums<"PetSize">;
 
@@ -49,11 +50,6 @@ type AddonEmbed = {
       }[]
     | null;
 };
-
-function one<T>(x: T | T[] | null | undefined): T | null {
-  if (x == null) return null;
-  return Array.isArray(x) ? (x[0] ?? null) : x;
-}
 
 export type EsteticaFlags = {
   incluyeBano: boolean;

@@ -44,6 +44,9 @@ export async function aplicarMigracion(
   const migracion = data;
 
   return withSupabase("migrar", async (supabase) => {
+    // El RPC recibe un único parámetro `Json`. El payload es estructuralmente
+    // JSON (arrays de objetos planos), pero sus tipos concretos no se solapan
+    // con el tipo recursivo `Json`, así que el cast doble es la vía idiomática.
     const payload = {
       clientes: migracion.clientes,
       perros: migracion.perros,
